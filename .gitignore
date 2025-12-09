@@ -5,3 +5,7 @@ Cargo.lock
 .env
 .vscode/
 
+# Tool configurations
+.claude/
+.specify/
+

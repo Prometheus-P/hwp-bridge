@@ -30,6 +30,9 @@ pub enum HwpError {
     #[error("Parse Error: {0}")]
     ParseError(String),
 
+    #[error("Not Found: {0}")]
+    NotFound(String),
+
     #[error("Google Drive API Error: {0}")]
     GoogleDriveError(String),
 }

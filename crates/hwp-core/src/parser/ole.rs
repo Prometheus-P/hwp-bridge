@@ -80,8 +80,13 @@ impl<F: Read + Seek> HwpOleFile<F> {
     }
 
     /// Section 스트림 읽기
+    ///
+    /// 섹션이 존재하지 않으면 NotFound 에러를 반환합니다.
     pub fn read_section(&mut self, index: usize) -> Result<Vec<u8>, HwpError> {
         let path = format!("/BodyText/Section{}", index);
+        if !self.has_stream(&path) {
+            return Err(HwpError::NotFound(format!("Section {} not found", index)));
+        }
         self.read(&path)
     }
 }

@@ -1,10 +1,12 @@
 // crates/hwp-core/src/parser/mod.rs
 
+mod document;
 mod header;
 mod ole;
 mod record;
 mod section;
 
+pub use document::HwpTextExtractor;
 pub use header::parse_file_header;
 pub use ole::HwpOleFile;
 pub use record::{tags, Record, RecordHeader, RecordIterator};

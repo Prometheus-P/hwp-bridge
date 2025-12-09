@@ -7,7 +7,7 @@
 
 pub mod parser;
 
-pub use parser::{parse_file_header, HwpOleFile};
+pub use parser::{parse_file_header, HwpOleFile, HwpTextExtractor};
 
 // Re-export common types from hwp-types
 pub use hwp_types::{

@@ -1,14 +1,15 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+// crates/hwp-core/src/lib.rs
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+//! HWP 파일 파싱 및 변환 핵심 엔진
+//!
+//! HWP 5.0 포맷의 OLE 컨테이너를 열고, FileHeader를 파싱하여
+//! 암호화/배포용 문서를 Fail-Fast로 걸러냅니다.
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub mod parser;
+
+pub use parser::{parse_file_header, HwpOleFile};
+
+// Re-export common types from hwp-types
+pub use hwp_types::{
+    DocumentProperties, FileHeader, HwpDocument, HwpError, HwpVersion, HWP_SIGNATURE,
+};

@@ -1,0 +1,43 @@
+# Build artifacts
+target/
+*.rs.bk
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Documentation (not needed in container)
+docs/
+*.md
+!README.md
+
+# Tests (not needed in production)
+tests/
+benches/
+fuzz/
+
+# CI/CD configs
+.github/
+
+# Local configs
+.env
+.env.*
+!.env.example
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Misc
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

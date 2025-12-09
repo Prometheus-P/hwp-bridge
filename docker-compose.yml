@@ -1,0 +1,152 @@
+# ============================================
+# HwpBridge Docker Compose
+# Development and local testing
+# ============================================
+
+services:
+  # ============================================
+  # hwp-web: REST API Server
+  # ============================================
+  hwp-web:
+    build:
+      context: .
+      target: hwp-web
+    image: hwp-bridge/hwp-web:latest
+    container_name: hwp-web
+    ports:
+      - "3000:3000"
+    environment:
+      - RUST_LOG=info,hwp_web=debug
+      - PORT=3000
+      # Google OAuth (optional)
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:3000/auth/google/callback}
+    volumes:
+      - ./data:/app/data:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - hwp-network
+
+  # ============================================
+  # hwp-mcp: MCP Server (stdio)
+  # ============================================
+  hwp-mcp:
+    build:
+      context: .
+      target: hwp-mcp
+    image: hwp-bridge/hwp-mcp:latest
+    container_name: hwp-mcp
+    stdin_open: true
+    tty: true
+    environment:
+      - RUST_LOG=info,hwp_mcp=debug
+    volumes:
+      - ./data:/app/data:ro
+    networks:
+      - hwp-network
+    profiles:
+      - mcp  # Only start with: docker compose --profile mcp up
+
+  # ============================================
+  # Nginx: Reverse Proxy (Production-like)
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: hwp-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - hwp-web
+    networks:
+      - hwp-network
+    profiles:
+      - production
+
+  # ============================================
+  # Redis: Cache (Optional)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: hwp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hwp-network
+    profiles:
+      - cache
+
+  # ============================================
+  # Prometheus: Metrics (Optional)
+  # ============================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: hwp-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - hwp-network
+    profiles:
+      - monitoring
+
+  # ============================================
+  # Grafana: Dashboards (Optional)
+  # ============================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: hwp-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    networks:
+      - hwp-network
+    profiles:
+      - monitoring
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  hwp-network:
+    driver: bridge
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:

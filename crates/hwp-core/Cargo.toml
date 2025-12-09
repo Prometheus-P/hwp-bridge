@@ -1,0 +1,13 @@
+[package]
+name = "hwp-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cfb = "0.12.1"
+chrono = "0.4.42"
+encoding_rs = "0.8.35"
+flate2 = "1.1.5"
+hwp-types = { version = "0.1.0", path = "../hwp-types" }
+nom = "8.0.0"
+tracing = "0.1.43"

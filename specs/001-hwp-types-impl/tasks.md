@@ -161,13 +161,14 @@
 
 **Purpose**: 최종 검증 및 문서화
 
-- [ ] T047 [P] Add doc comments to all public types in all new modules
+- [ ] T047 [P] Add doc comments to all public types in all new modules; verify all public types derive Debug
 - [ ] T048 [P] Verify JSON serialization roundtrip for all types with serde_json
 - [ ] T049 Run `cargo fmt --all` and fix formatting
 - [ ] T050 Run `cargo clippy --workspace -- -D warnings` and fix warnings
 - [ ] T051 Run `cargo test --workspace` for full test suite
 - [ ] T052 Run `cargo doc -p hwp-types` and verify documentation
 - [ ] T053 Validate against quickstart.md examples
+- [ ] T054 [Safety] Run `grep -r 'unwrap\|expect' crates/hwp-types/src/` and verify zero matches in non-test code
 
 ---
 

@@ -168,7 +168,7 @@
 - [x] T051 Run `cargo test --workspace` for full test suite
 - [x] T052 Run `cargo doc -p hwp-types` and verify documentation
 - [x] T053 Validate against quickstart.md examples
-- [ ] T054 [Safety] Run `grep -r 'unwrap\|expect' crates/hwp-types/src/` and verify zero matches in non-test code
+- [x] T054 [Safety] Run `grep -r 'unwrap\|expect' crates/hwp-types/src/` and verify zero matches in non-test code
 
 ---
 

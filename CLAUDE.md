@@ -232,3 +232,10 @@ cargo run -p hwp-web
 ---
 
 **Last Updated:** 2025-12-11
+
+## Active Technologies
+- Rust 1.85+ (2024 Edition) + serde (직렬화), thiserror (에러 정의) (001-hwp-types-impl)
+- N/A (타입 정의만, 저장 로직 없음) (001-hwp-types-impl)
+
+## Recent Changes
+- 001-hwp-types-impl: Added Rust 1.85+ (2024 Edition) + serde (직렬화), thiserror (에러 정의)

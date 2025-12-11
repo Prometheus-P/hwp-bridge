@@ -198,8 +198,7 @@ mod tests {
     #[test]
     fn test_should_store_bindata_with_extension_when_created() {
         // Arrange & Act
-        let bin_data = BinData::new(1, BinDataType::Embedding)
-            .with_extension("png");
+        let bin_data = BinData::new(1, BinDataType::Embedding).with_extension("png");
 
         // Assert
         assert_eq!(bin_data.id, 1);

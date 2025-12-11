@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// - tag_id: 레코드 종류 (10 bits, 0-1023)
 /// - level: 중첩 깊이 (10 bits)
 /// - size: 데이터 크기 (12 bits 기본, 0xFFF인 경우 4바이트 확장)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordHeader {
     /// 태그 ID (10 bits, 0-1023)
     pub tag_id: u16,
@@ -25,22 +25,16 @@ pub struct RecordHeader {
 impl RecordHeader {
     /// 새 RecordHeader 생성
     pub fn new(tag_id: u16, level: u16, size: u32) -> Self {
-        Self { tag_id, level, size }
+        Self {
+            tag_id,
+            level,
+            size,
+        }
     }
 
     /// 확장 크기 사용 여부 (size가 4095 이상인 경우)
     pub fn is_extended_size(&self) -> bool {
         self.size >= 0xFFF
-    }
-}
-
-impl Default for RecordHeader {
-    fn default() -> Self {
-        Self {
-            tag_id: 0,
-            level: 0,
-            size: 0,
-        }
     }
 }
 

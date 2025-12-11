@@ -35,7 +35,6 @@ let paragraph = Paragraph {
     text: "Hello, HWP!".to_string(),
     para_shape_id: 0,
     char_shapes: vec![(0, 0)],  // 위치 0부터 CharShape ID 0
-    controls: vec![],
 };
 
 let section = Section {
@@ -82,7 +81,7 @@ match para_shape.attr.alignment() {
 ### 3. 표 생성
 
 ```rust
-use hwp_types::{Control, Table, TableCell, Paragraph};
+use hwp_types::{Control, Table, TableCell};
 
 // 2x2 표 생성
 let table = Table {
@@ -93,19 +92,13 @@ let table = Table {
             col: 0, row: 0,
             col_span: 1, row_span: 1,
             width: 7200, height: 3600,  // HWPUNIT
-            paragraphs: vec![Paragraph {
-                text: "셀 1".to_string(),
-                ..Default::default()
-            }],
+            text: "셀 1".to_string(),
         },
         TableCell {
             col: 1, row: 0,
             col_span: 1, row_span: 1,
             width: 7200, height: 3600,
-            paragraphs: vec![Paragraph {
-                text: "셀 2".to_string(),
-                ..Default::default()
-            }],
+            text: "셀 2".to_string(),
         },
         // ... 나머지 셀
     ],

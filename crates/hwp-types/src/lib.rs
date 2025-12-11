@@ -269,3 +269,125 @@ pub struct ConvertOptions {
     pub extract_images: bool,
     pub include_comments: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// T048: JSON serialization roundtrip test for all major types
+    #[test]
+    fn test_should_roundtrip_hwp_document_when_serialized_to_json() {
+        // Arrange - Create a complete HwpDocument
+        let mut doc = HwpDocument::new();
+        doc.metadata.title = "Test Document".to_string();
+        doc.metadata.author = "Test Author".to_string();
+
+        // Add a section with paragraph
+        let mut section = Section::new();
+        let mut para = Paragraph::new("Hello, HWP!");
+        para.add_char_shape(0, 1);
+        section.push_paragraph(para);
+        doc.add_section(section);
+
+        // Add char_shapes
+        let mut char_shape = CharShape::default();
+        char_shape.base_size = 1000;
+        char_shape.text_color = 0x000000;
+        char_shape.attr = CharShapeAttr::from_bits(0b11); // bold + italic
+        doc.char_shapes.push(char_shape);
+
+        // Add para_shapes
+        let mut para_shape = ParaShape::default();
+        para_shape.margin_left = 100;
+        para_shape.attr = ParaShapeAttr::from_bits(0b1100); // center alignment
+        doc.para_shapes.push(para_shape);
+
+        // Add bin_data
+        let bin_data = BinData {
+            id: 1,
+            storage_type: BinDataType::Embedding,
+            extension: "png".to_string(),
+            data: vec![0x89, 0x50, 0x4E, 0x47], // PNG magic bytes
+        };
+        doc.add_bin_data(bin_data);
+
+        // Act - Serialize and deserialize
+        let json = serde_json::to_string(&doc).expect("Failed to serialize HwpDocument");
+        let deserialized: HwpDocument =
+            serde_json::from_str(&json).expect("Failed to deserialize HwpDocument");
+
+        // Assert
+        assert_eq!(doc.metadata.title, deserialized.metadata.title);
+        assert_eq!(doc.metadata.author, deserialized.metadata.author);
+        assert_eq!(doc.sections.len(), deserialized.sections.len());
+        assert_eq!(
+            doc.sections[0].paragraphs[0].text,
+            deserialized.sections[0].paragraphs[0].text
+        );
+        assert_eq!(doc.char_shapes.len(), deserialized.char_shapes.len());
+        assert!(deserialized.char_shapes[0].attr.is_bold());
+        assert!(deserialized.char_shapes[0].attr.is_italic());
+        assert_eq!(doc.para_shapes.len(), deserialized.para_shapes.len());
+        assert_eq!(
+            deserialized.para_shapes[0].attr.alignment(),
+            Alignment::Center
+        );
+        assert_eq!(doc.bin_data.len(), deserialized.bin_data.len());
+        assert_eq!(
+            doc.bin_data[0].extension,
+            deserialized.bin_data[0].extension
+        );
+    }
+
+    #[test]
+    fn test_should_roundtrip_record_header_when_serialized() {
+        // Arrange
+        let header = RecordHeader::new(0x42, 5, 1000);
+
+        // Act
+        let json = serde_json::to_string(&header).expect("Failed to serialize");
+        let deserialized: RecordHeader =
+            serde_json::from_str(&json).expect("Failed to deserialize");
+
+        // Assert
+        assert_eq!(header, deserialized);
+    }
+
+    #[test]
+    fn test_should_roundtrip_control_table_when_serialized() {
+        // Arrange
+        let mut table = Table::new(2, 3);
+        table.add_cell(TableCell::new(0, 0).with_span(1, 1));
+        let control = Control::Table(table);
+
+        // Act
+        let json = serde_json::to_string(&control).expect("Failed to serialize");
+        let deserialized: Control = serde_json::from_str(&json).expect("Failed to deserialize");
+
+        // Assert
+        if let Control::Table(t) = deserialized {
+            assert_eq!(t.rows, 2);
+            assert_eq!(t.cols, 3);
+            assert_eq!(t.cells.len(), 1);
+        } else {
+            panic!("Expected Control::Table");
+        }
+    }
+
+    #[test]
+    fn test_should_roundtrip_file_header_when_serialized() {
+        // Arrange
+        let header = FileHeader {
+            version: HwpVersion::new(5, 1, 0, 0),
+            properties: DocumentProperties::from_bits(0b001), // compressed
+        };
+
+        // Act
+        let json = serde_json::to_string(&header).expect("Failed to serialize");
+        let deserialized: FileHeader = serde_json::from_str(&json).expect("Failed to deserialize");
+
+        // Assert
+        assert_eq!(header.version.major, deserialized.version.major);
+        assert!(deserialized.properties.is_compressed());
+    }
+}

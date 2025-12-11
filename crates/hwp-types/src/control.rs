@@ -92,7 +92,7 @@ pub struct TableCell {
     /// 셀 높이 (HWPUNIT)
     pub height: u32,
     /// 셀 내용 텍스트 (간소화된 버전)
-    /// 실제로는 Vec<Paragraph>이지만 순환 참조 방지를 위해 String으로 저장
+    /// 실제로는 `Vec<Paragraph>`이지만 순환 참조 방지를 위해 String으로 저장
     pub text: String,
 }
 
@@ -270,7 +270,7 @@ mod tests {
         let cell = TableCell::empty().with_size(7200, 3600);
 
         // Assert
-        assert_eq!(cell.width, 7200);  // 1 inch
+        assert_eq!(cell.width, 7200); // 1 inch
         assert_eq!(cell.height, 3600); // 0.5 inch
     }
 
@@ -333,7 +333,14 @@ mod tests {
         assert!(matches!(pic_ctrl, Control::Picture(_)));
 
         // Unknown variant
-        let unknown_ctrl = Control::Unknown { ctrl_id: 0x12345678 };
-        assert!(matches!(unknown_ctrl, Control::Unknown { ctrl_id: 0x12345678 }));
+        let unknown_ctrl = Control::Unknown {
+            ctrl_id: 0x12345678,
+        };
+        assert!(matches!(
+            unknown_ctrl,
+            Control::Unknown {
+                ctrl_id: 0x12345678
+            }
+        ));
     }
 }

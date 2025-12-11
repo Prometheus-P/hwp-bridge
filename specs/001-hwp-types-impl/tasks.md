@@ -30,9 +30,9 @@
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Foundational / User Story 5 - 레코드 태그 상수 (Blocking Prerequisites)
 
-**Purpose**: 다른 모든 타입에서 사용하는 기반 타입 구현
+**Purpose**: 다른 모든 타입에서 사용하는 기반 타입 구현 (tags, RecordHeader)
 
 **⚠️ CRITICAL**: 이 Phase 완료 전까지 User Story 구현 불가
 
@@ -116,19 +116,19 @@
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T030 [P] [US3] Write test `test_should_create_table_with_dimensions_when_set` in `crates/hwp-types/src/control.rs`
-- [ ] T031 [P] [US3] Write test `test_should_store_cell_span_when_set` in `crates/hwp-types/src/control.rs`
-- [ ] T032 [P] [US3] Write test `test_should_create_picture_with_bindata_id_when_set` in `crates/hwp-types/src/control.rs`
+- [x] T030 [P] [US3] Write test `test_should_create_table_with_dimensions_when_set` in `crates/hwp-types/src/control.rs`
+- [x] T031 [P] [US3] Write test `test_should_store_cell_span_when_set` in `crates/hwp-types/src/control.rs`
+- [x] T032 [P] [US3] Write test `test_should_create_picture_with_bindata_id_when_set` in `crates/hwp-types/src/control.rs`
 
 ### Implementation for User Story 3
 
-- [ ] T033 [US3] Create `crates/hwp-types/src/control.rs` with Table struct per data-model.md section 3
-- [ ] T034 [US3] Add TableCell struct to `crates/hwp-types/src/control.rs`
-- [ ] T035 [US3] Add Picture struct to `crates/hwp-types/src/control.rs`
-- [ ] T036 [US3] Add Control enum (Table, Picture, Unknown) to `crates/hwp-types/src/control.rs`
-- [ ] T037 [US3] Add `pub mod control;` to `crates/hwp-types/src/lib.rs` and re-export types
-- [ ] T038 [US3] Update Paragraph in document.rs to use `controls: Vec<Control>`
-- [ ] T039 [US3] Run `cargo test -p hwp-types` to verify US3 tests pass
+- [x] T033 [US3] Create `crates/hwp-types/src/control.rs` with Table struct per data-model.md section 3
+- [x] T034 [US3] Add TableCell struct to `crates/hwp-types/src/control.rs`
+- [x] T035 [US3] Add Picture struct to `crates/hwp-types/src/control.rs`
+- [x] T036 [US3] Add Control enum (Table, Picture, Unknown) to `crates/hwp-types/src/control.rs`
+- [x] T037 [US3] Add `pub mod control;` to `crates/hwp-types/src/lib.rs` and re-export types
+- [x] T038 [US3] Update Paragraph in document.rs to use `controls: Vec<Control>`
+- [x] T039 [US3] Run `cargo test -p hwp-types` to verify US3 tests pass
 
 **Checkpoint**: User Story 3 완료 - 컨트롤 타입 독립적으로 테스트 가능
 
@@ -142,16 +142,16 @@
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T040 [P] [US4] Write test `test_should_store_bindata_with_extension_when_created` in `crates/hwp-types/src/bindata.rs`
-- [ ] T041 [P] [US4] Write test `test_should_distinguish_bindata_types_when_compared` in `crates/hwp-types/src/bindata.rs`
+- [x] T040 [P] [US4] Write test `test_should_store_bindata_with_extension_when_created` in `crates/hwp-types/src/bindata.rs`
+- [x] T041 [P] [US4] Write test `test_should_distinguish_bindata_types_when_compared` in `crates/hwp-types/src/bindata.rs`
 
 ### Implementation for User Story 4
 
-- [ ] T042 [US4] Create `crates/hwp-types/src/bindata.rs` with BinDataType enum per data-model.md section 4
-- [ ] T043 [US4] Add BinData struct to `crates/hwp-types/src/bindata.rs`
-- [ ] T044 [US4] Add `pub mod bindata;` to `crates/hwp-types/src/lib.rs` and re-export types
-- [ ] T045 [US4] Add `bin_data: Vec<BinData>` to HwpDocument
-- [ ] T046 [US4] Run `cargo test -p hwp-types` to verify US4 tests pass
+- [x] T042 [US4] Create `crates/hwp-types/src/bindata.rs` with BinDataType enum per data-model.md section 4
+- [x] T043 [US4] Add BinData struct to `crates/hwp-types/src/bindata.rs`
+- [x] T044 [US4] Add `pub mod bindata;` to `crates/hwp-types/src/lib.rs` and re-export types
+- [x] T045 [US4] Add `bin_data: Vec<BinData>` to HwpDocument
+- [x] T046 [US4] Run `cargo test -p hwp-types` to verify US4 tests pass
 
 **Checkpoint**: User Story 4 완료 - 바이너리 데이터 타입 독립적으로 테스트 가능
 
@@ -161,13 +161,13 @@
 
 **Purpose**: 최종 검증 및 문서화
 
-- [ ] T047 [P] Add doc comments to all public types in all new modules; verify all public types derive Debug
-- [ ] T048 [P] Verify JSON serialization roundtrip for all types with serde_json
-- [ ] T049 Run `cargo fmt --all` and fix formatting
-- [ ] T050 Run `cargo clippy --workspace -- -D warnings` and fix warnings
-- [ ] T051 Run `cargo test --workspace` for full test suite
-- [ ] T052 Run `cargo doc -p hwp-types` and verify documentation
-- [ ] T053 Validate against quickstart.md examples
+- [x] T047 [P] Add doc comments to all public types in all new modules; verify all public types derive Debug
+- [x] T048 [P] Verify JSON serialization roundtrip for all types with serde_json
+- [x] T049 Run `cargo fmt --all` and fix formatting
+- [x] T050 Run `cargo clippy --workspace -- -D warnings` and fix warnings
+- [x] T051 Run `cargo test --workspace` for full test suite
+- [x] T052 Run `cargo doc -p hwp-types` and verify documentation
+- [x] T053 Validate against quickstart.md examples
 - [ ] T054 [Safety] Run `grep -r 'unwrap\|expect' crates/hwp-types/src/` and verify zero matches in non-test code
 
 ---

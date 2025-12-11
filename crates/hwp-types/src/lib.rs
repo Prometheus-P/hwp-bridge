@@ -1,7 +1,26 @@
 // crates/hwp-types/src/lib.rs
 
+//! HWP 타입 정의 크레이트
+//!
+//! HWP 문서 파싱 및 변환에 사용되는 공용 타입 정의입니다.
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+// === Modules ===
+pub mod bindata;
+pub mod control;
+pub mod document;
+pub mod record;
+pub mod style;
+pub mod tags;
+
+// === Re-exports ===
+pub use bindata::{BinData, BinDataType};
+pub use control::{Control, Picture, Table, TableCell};
+pub use document::{Paragraph, Section};
+pub use record::RecordHeader;
+pub use style::{Alignment, CharShape, CharShapeAttr, ParaShape, ParaShapeAttr};
 
 /// HWP Document File 시그니처 (32 bytes, null-padded)
 pub const HWP_SIGNATURE: &[u8; 32] = b"HWP Document File\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
@@ -48,7 +67,12 @@ pub struct HwpVersion {
 
 impl HwpVersion {
     pub fn new(major: u8, minor: u8, build: u8, revision: u8) -> Self {
-        Self { major, minor, build, revision }
+        Self {
+            major,
+            minor,
+            build,
+            revision,
+        }
     }
 
     /// 버전 바이트(4 bytes, little-endian)에서 파싱
@@ -70,7 +94,11 @@ impl HwpVersion {
 
 impl std::fmt::Display for HwpVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}.{}.{}", self.major, self.minor, self.build, self.revision)
+        write!(
+            f,
+            "{}.{}.{}.{}",
+            self.major, self.minor, self.build, self.revision
+        )
     }
 }
 
@@ -184,11 +212,46 @@ impl FileHeader {
     }
 }
 
-/// 파싱 결과물(HwpDocument)을 표현하는 최상위 구조체
-#[derive(Debug, Serialize, Deserialize, Default)]
+/// 파싱 결과물 최상위 구조체
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct HwpDocument {
+    /// 문서 메타데이터
     pub metadata: DocumentMetadata,
-    pub content: String, // 임시로 String, 나중엔 Vec<Section> 등 구조화
+    /// 문서 섹션 목록
+    pub sections: Vec<Section>,
+    /// 글자 모양 목록 (DocInfo에서 파싱)
+    pub char_shapes: Vec<CharShape>,
+    /// 문단 모양 목록 (DocInfo에서 파싱)
+    pub para_shapes: Vec<ParaShape>,
+    /// 바이너리 데이터 목록 (이미지, OLE 객체 등)
+    pub bin_data: Vec<BinData>,
+}
+
+impl HwpDocument {
+    /// 새 빈 문서 생성
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 섹션 추가
+    pub fn add_section(&mut self, section: Section) {
+        self.sections.push(section);
+    }
+
+    /// 바이너리 데이터 추가
+    pub fn add_bin_data(&mut self, data: BinData) {
+        self.bin_data.push(data);
+    }
+
+    /// 전체 텍스트 추출 (간소화 버전)
+    pub fn extract_text(&self) -> String {
+        self.sections
+            .iter()
+            .flat_map(|s| s.paragraphs.iter())
+            .map(|p| p.text.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]

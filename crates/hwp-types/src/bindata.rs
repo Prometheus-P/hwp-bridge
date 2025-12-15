@@ -59,8 +59,17 @@ impl BinDataType {
 pub struct BinData {
     /// 데이터 ID
     pub id: u16,
+    /// 속성 플래그
+    /// Bit 0-1: 저장 타입 (0=Link, 1=Embedding, 2=Storage)
+    /// Bit 2: 압축 여부
+    /// Bit 3: 경로로 접근
+    pub properties: u16,
     /// 저장 타입
     pub storage_type: BinDataType,
+    /// 절대 경로 (Link 타입일 때)
+    pub abs_path: String,
+    /// 상대 경로 (Link 타입일 때)
+    pub rel_path: String,
     /// 파일 확장자 (예: "png", "jpg")
     pub extension: String,
     /// 원본 데이터
@@ -112,6 +121,45 @@ impl BinData {
             ext.as_str(),
             "png" | "jpg" | "jpeg" | "gif" | "bmp" | "tif" | "tiff" | "wmf" | "emf"
         )
+    }
+
+    /// OLE 객체인지 확인
+    pub fn is_ole(&self) -> bool {
+        self.extension.to_lowercase() == "ole"
+    }
+
+    /// 압축된 데이터인지 확인 (bit 2)
+    pub fn is_compressed(&self) -> bool {
+        self.properties & 0x04 != 0
+    }
+
+    /// 경로로 접근하는지 확인 (bit 3)
+    pub fn is_access_by_path(&self) -> bool {
+        self.properties & 0x08 != 0
+    }
+
+    /// 속성 플래그에서 저장 타입 추출
+    pub fn type_from_properties(&self) -> BinDataType {
+        BinDataType::from_value(self.properties & 0x03)
+    }
+
+    /// 절대 경로 설정
+    pub fn with_abs_path(mut self, path: impl Into<String>) -> Self {
+        self.abs_path = path.into();
+        self
+    }
+
+    /// 상대 경로 설정
+    pub fn with_rel_path(mut self, path: impl Into<String>) -> Self {
+        self.rel_path = path.into();
+        self
+    }
+
+    /// 속성 플래그 설정
+    pub fn with_properties(mut self, props: u16) -> Self {
+        self.properties = props;
+        self.storage_type = BinDataType::from_value(props & 0x03);
+        self
     }
 }
 
@@ -266,5 +314,77 @@ mod tests {
         assert_eq!(bin_data.storage_type, BinDataType::Storage);
         assert_eq!(bin_data.extension, "doc");
         assert_eq!(bin_data.data, data);
+    }
+
+    #[test]
+    fn test_should_detect_compressed_when_bit_set() {
+        // Arrange
+        let compressed = BinData::empty().with_properties(0x05); // bit 0 + bit 2
+
+        // Assert
+        assert!(compressed.is_compressed());
+        assert_eq!(compressed.storage_type, BinDataType::Embedding);
+    }
+
+    #[test]
+    fn test_should_detect_access_by_path_when_bit_set() {
+        // Arrange
+        let by_path = BinData::empty().with_properties(0x08); // bit 3
+
+        // Assert
+        assert!(by_path.is_access_by_path());
+    }
+
+    #[test]
+    fn test_should_extract_type_from_properties() {
+        // Arrange & Act & Assert
+        assert_eq!(
+            BinData::empty()
+                .with_properties(0x00)
+                .type_from_properties(),
+            BinDataType::Link
+        );
+        assert_eq!(
+            BinData::empty()
+                .with_properties(0x01)
+                .type_from_properties(),
+            BinDataType::Embedding
+        );
+        assert_eq!(
+            BinData::empty()
+                .with_properties(0x02)
+                .type_from_properties(),
+            BinDataType::Storage
+        );
+        // With other bits set
+        assert_eq!(
+            BinData::empty()
+                .with_properties(0x0D)
+                .type_from_properties(),
+            BinDataType::Embedding
+        );
+    }
+
+    #[test]
+    fn test_should_detect_ole_when_extension_ole() {
+        // Arrange
+        let ole = BinData::empty().with_extension("OLE");
+        let not_ole = BinData::empty().with_extension("png");
+
+        // Assert
+        assert!(ole.is_ole());
+        assert!(!not_ole.is_ole());
+    }
+
+    #[test]
+    fn test_should_set_paths_with_builder() {
+        // Arrange & Act
+        let bin_data = BinData::empty()
+            .with_abs_path("C:\\Documents\\image.png")
+            .with_rel_path("image.png");
+
+        // Assert
+        assert_eq!(bin_data.abs_path, "C:\\Documents\\image.png");
+        assert_eq!(bin_data.rel_path, "image.png");
     }
 }

@@ -88,18 +88,29 @@ impl CharShapeAttr {
 }
 
 /// 글자 모양 정의 (DocInfo 스트림에서 파싱)
+///
+/// HWP 문서에서 글자의 시각적 속성을 정의합니다.
+/// 7개 언어(한글, 영문, 한자, 일문, 기타, 기호, 사용자)별로 개별 설정이 가능합니다.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CharShape {
     /// 글꼴 ID 참조 (언어별 7개: 한글, 영문, 한자, 일문, 기타, 기호, 사용자)
     pub font_ids: [u16; 7],
-    /// 글꼴 비율 (%, 언어별)
+    /// 글꼴 비율 (%, 언어별, 50-200)
     pub font_scales: [u8; 7],
-    /// 자간 (언어별)
+    /// 자간 (%, 언어별, -50 ~ 50)
     pub char_spacing: [i8; 7],
-    /// 상대 크기 (%, 언어별)
+    /// 상대 크기 (%, 언어별, 10-250)
     pub relative_sizes: [u8; 7],
-    /// 기준 크기 (1/100 pt 단위)
-    pub base_size: u32,
+    /// 글자 위치 오프셋 (%, 언어별, -100 ~ 100)
+    pub char_offsets: [i8; 7],
+    /// 기준 크기 (1/100 pt 단위, 예: 1000 = 10pt)
+    pub base_size: i32,
+    /// 속성 플래그 (Bold, Italic, Underline 등)
+    pub attr: CharShapeAttr,
+    /// 그림자 X 간격 (%, -100 ~ 100)
+    pub shadow_gap_x: i8,
+    /// 그림자 Y 간격 (%, -100 ~ 100)
+    pub shadow_gap_y: i8,
     /// 글자 색상 (COLORREF: 0x00BBGGRR)
     pub text_color: u32,
     /// 밑줄 색상
@@ -108,8 +119,55 @@ pub struct CharShape {
     pub shade_color: u32,
     /// 그림자 색상
     pub shadow_color: u32,
-    /// 속성 플래그 (Bold, Italic, Underline 등)
-    pub attr: CharShapeAttr,
+    /// 테두리/배경 ID (BorderFill 참조)
+    pub border_fill_id: u16,
+}
+
+impl CharShape {
+    /// 새 CharShape 생성 (기본 한글 문서용)
+    pub fn new_default() -> Self {
+        Self {
+            font_ids: [0; 7],
+            font_scales: [100; 7],
+            char_spacing: [0; 7],
+            relative_sizes: [100; 7],
+            char_offsets: [0; 7],
+            base_size: 1000, // 10pt
+            attr: CharShapeAttr::default(),
+            shadow_gap_x: 0,
+            shadow_gap_y: 0,
+            text_color: 0x000000,      // 검정
+            underline_color: 0x000000, // 검정
+            shade_color: 0xFFFFFF,     // 흰색
+            shadow_color: 0x808080,    // 회색
+            border_fill_id: 0,
+        }
+    }
+
+    /// 글자 크기 (pt 단위) 반환
+    pub fn size_pt(&self) -> f32 {
+        self.base_size as f32 / 100.0
+    }
+
+    /// 굵은 글씨 여부
+    pub fn is_bold(&self) -> bool {
+        self.attr.is_bold()
+    }
+
+    /// 기울임 글씨 여부
+    pub fn is_italic(&self) -> bool {
+        self.attr.is_italic()
+    }
+
+    /// 밑줄 여부
+    pub fn has_underline(&self) -> bool {
+        self.attr.underline_type() > 0
+    }
+
+    /// 취소선 여부
+    pub fn has_strikethrough(&self) -> bool {
+        self.attr.strikethrough_type() > 0
+    }
 }
 
 /// 문단 속성 비트 플래그
@@ -145,10 +203,39 @@ impl ParaShapeAttr {
     }
 }
 
+/// 줄 간격 종류
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum LineSpaceType {
+    /// 퍼센트 (기본값, 예: 160 = 160%)
+    #[default]
+    Percent = 0,
+    /// 고정값 (HWPUNIT)
+    Fixed = 1,
+    /// 여백만 지정
+    SpaceOnly = 2,
+    /// 최소값
+    AtLeast = 3,
+}
+
+impl LineSpaceType {
+    pub fn from_u8(value: u8) -> Self {
+        match value {
+            0 => Self::Percent,
+            1 => Self::Fixed,
+            2 => Self::SpaceOnly,
+            3 => Self::AtLeast,
+            _ => Self::Percent,
+        }
+    }
+}
+
 /// 문단 모양 정의 (DocInfo 스트림에서 파싱)
+///
+/// HWP 문서에서 문단의 레이아웃 속성을 정의합니다.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ParaShape {
-    /// 속성 플래그
+    /// 속성 플래그1 (정렬, 줄바꿈 등)
     pub attr: ParaShapeAttr,
     /// 왼쪽 여백 (HWPUNIT: 1/7200 inch)
     pub margin_left: i32,
@@ -160,7 +247,7 @@ pub struct ParaShape {
     pub margin_top: i32,
     /// 문단 아래 간격
     pub margin_bottom: i32,
-    /// 줄 간격 (% 또는 고정값)
+    /// 줄 간격 (% 또는 고정값, line_space_type에 따라 해석)
     pub line_spacing: i32,
     /// 탭 정의 ID
     pub tab_def_id: u16,
@@ -168,6 +255,69 @@ pub struct ParaShape {
     pub para_head_id: u16,
     /// 테두리/배경 ID
     pub border_fill_id: u16,
+    /// 테두리 왼쪽 여백 (HWPUNIT)
+    pub border_space_left: i16,
+    /// 테두리 오른쪽 여백
+    pub border_space_right: i16,
+    /// 테두리 위쪽 여백
+    pub border_space_top: i16,
+    /// 테두리 아래쪽 여백
+    pub border_space_bottom: i16,
+    /// 속성 플래그2 (한글 줄바꿈, 영문 줄바꿈 등)
+    pub attr2: u32,
+    /// 속성 플래그3 (줄 간격 종류 등)
+    pub attr3: u32,
+    /// 줄 간격 종류
+    pub line_space_type: LineSpaceType,
+}
+
+impl ParaShape {
+    /// 새 ParaShape 생성 (기본 한글 문서용)
+    pub fn new_default() -> Self {
+        Self {
+            attr: ParaShapeAttr::from_bits(0x04), // 왼쪽 정렬
+            margin_left: 0,
+            margin_right: 0,
+            indent: 0,
+            margin_top: 0,
+            margin_bottom: 0,
+            line_spacing: 160, // 160%
+            tab_def_id: 0,
+            para_head_id: 0,
+            border_fill_id: 0,
+            border_space_left: 0,
+            border_space_right: 0,
+            border_space_top: 0,
+            border_space_bottom: 0,
+            attr2: 0,
+            attr3: 0,
+            line_space_type: LineSpaceType::Percent,
+        }
+    }
+
+    /// 정렬 방식 반환
+    pub fn alignment(&self) -> Alignment {
+        self.attr.alignment()
+    }
+
+    /// 줄 간격 (퍼센트) 반환
+    /// line_space_type이 Percent일 때만 의미 있음
+    pub fn line_spacing_percent(&self) -> i32 {
+        match self.line_space_type {
+            LineSpaceType::Percent => self.line_spacing,
+            _ => 100, // 다른 타입일 경우 기본값
+        }
+    }
+
+    /// 들여쓰기 여부
+    pub fn has_indent(&self) -> bool {
+        self.indent != 0
+    }
+
+    /// 내어쓰기 여부
+    pub fn has_outdent(&self) -> bool {
+        self.indent < 0
+    }
 }
 
 #[cfg(test)]

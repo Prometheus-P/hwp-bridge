@@ -9,18 +9,32 @@ use thiserror::Error;
 
 // === Modules ===
 pub mod bindata;
+pub mod border_fill;
 pub mod control;
 pub mod document;
+pub mod face_name;
 pub mod record;
+pub mod structured;
 pub mod style;
 pub mod tags;
 
 // === Re-exports ===
 pub use bindata::{BinData, BinDataType};
+pub use border_fill::{
+    BorderFill, BorderLine, BorderLineType, FillGradient, FillImage, FillInfo, GradientType,
+};
 pub use control::{Control, Picture, Table, TableCell};
 pub use document::{Paragraph, Section};
+pub use face_name::{FaceName, FontLanguage, Panose, SubstituteFontType};
 pub use record::RecordHeader;
-pub use style::{Alignment, CharShape, CharShapeAttr, ParaShape, ParaShapeAttr};
+pub use structured::{
+    ContentBlock, ContentLocation, InlineStyle, OutlineItem, PageOrientation, PageSetup,
+    ParagraphType, StructuredDocument, StructuredEquation, StructuredFootnote, StructuredImage,
+    StructuredMetadata, StructuredParagraph, StructuredSection, StructuredTable,
+    StructuredTableCell, StyleDefinitions, TextAlignment, TextRun,
+};
+pub use style::{Alignment, CharShape, CharShapeAttr, LineSpaceType, ParaShape, ParaShapeAttr};
+pub use tags::RecordTag;
 
 /// HWP Document File 시그니처 (32 bytes, null-padded)
 pub const HWP_SIGNATURE: &[u8; 32] = b"HWP Document File\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
@@ -303,12 +317,9 @@ mod tests {
         doc.para_shapes.push(para_shape);
 
         // Add bin_data
-        let bin_data = BinData {
-            id: 1,
-            storage_type: BinDataType::Embedding,
-            extension: "png".to_string(),
-            data: vec![0x89, 0x50, 0x4E, 0x47], // PNG magic bytes
-        };
+        let bin_data = BinData::new(1, BinDataType::Embedding)
+            .with_extension("png")
+            .with_data(vec![0x89, 0x50, 0x4E, 0x47]); // PNG magic bytes
         doc.add_bin_data(bin_data);
 
         // Act - Serialize and deserialize

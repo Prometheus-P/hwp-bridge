@@ -29,10 +29,22 @@ impl Default for Control {
 /// 표 컨트롤
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Table {
+    /// 속성 플래그
+    pub properties: u32,
     /// 행 수
     pub rows: u16,
     /// 열 수
     pub cols: u16,
+    /// 셀 간격 (HWPUNIT: 1/7200 inch)
+    pub cell_spacing: u16,
+    /// 왼쪽 여백 (HWPUNIT)
+    pub left_margin: i32,
+    /// 오른쪽 여백 (HWPUNIT)
+    pub right_margin: i32,
+    /// 위쪽 여백 (HWPUNIT)
+    pub top_margin: i32,
+    /// 아래쪽 여백 (HWPUNIT)
+    pub bottom_margin: i32,
     /// 셀 목록
     pub cells: Vec<TableCell>,
     /// 테두리/배경 ID
@@ -79,6 +91,8 @@ impl Table {
 /// 표 셀
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TableCell {
+    /// 리스트 헤더 ID
+    pub list_header_id: u32,
     /// 열 주소 (0-based)
     pub col: u16,
     /// 행 주소 (0-based)
@@ -91,6 +105,20 @@ pub struct TableCell {
     pub width: u32,
     /// 셀 높이 (HWPUNIT)
     pub height: u32,
+    /// 왼쪽 여백 (HWPUNIT)
+    pub left_margin: u16,
+    /// 오른쪽 여백 (HWPUNIT)
+    pub right_margin: u16,
+    /// 위쪽 여백 (HWPUNIT)
+    pub top_margin: u16,
+    /// 아래쪽 여백 (HWPUNIT)
+    pub bottom_margin: u16,
+    /// 테두리/배경 ID
+    pub border_fill_id: u16,
+    /// 텍스트 너비 (HWPUNIT)
+    pub text_width: u32,
+    /// 필드 이름
+    pub field_name: String,
     /// 셀 내용 텍스트 (간소화된 버전)
     /// 실제로는 `Vec<Paragraph>`이지만 순환 참조 방지를 위해 String으로 저장
     pub text: String,

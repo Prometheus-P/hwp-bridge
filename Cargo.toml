@@ -4,7 +4,6 @@ members = [
     "crates/hwp-types",
     "crates/hwp-core",
     "crates/hwp-cli",
-    "crates/hwp-web",
     "crates/hwp-mcp",
     "crates/hwp-wasm",
 ]

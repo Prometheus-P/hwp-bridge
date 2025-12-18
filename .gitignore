@@ -9,4 +9,8 @@ Cargo.lock
 .claude/
 .specify/
 
+# Reference/integrated projects
+hwpers/
+GEMINI.md
+
 hwpjs.pdf

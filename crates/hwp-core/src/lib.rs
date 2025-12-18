@@ -5,11 +5,14 @@
 //! HWP 5.0 포맷의 OLE 컨테이너를 열고, FileHeader를 파싱하여
 //! 암호화/배포용 문서를 Fail-Fast로 걸러냅니다.
 
+pub mod converter;
 pub mod parser;
 
+pub use converter::to_structured_document;
 pub use parser::{HwpOleFile, HwpTextExtractor, parse_file_header};
 
 // Re-export common types from hwp-types
 pub use hwp_types::{
     DocumentProperties, FileHeader, HWP_SIGNATURE, HwpDocument, HwpError, HwpVersion,
+    StructuredDocument,
 };

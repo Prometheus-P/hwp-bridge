@@ -71,8 +71,8 @@ impl<F: Read + Seek> HwpTextExtractor<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use flate2::write::ZlibEncoder;
     use flate2::Compression;
+    use flate2::write::ZlibEncoder;
     use std::io::{Cursor, Write};
 
     // ═══════════════════════════════════════════════════════════════
@@ -90,17 +90,26 @@ mod tests {
 
             // FileHeader 스트림 생성
             let file_header = create_file_header();
-            let mut stream = cfb.create_stream("/FileHeader").expect("Failed to create FileHeader");
-            stream.write_all(&file_header).expect("Failed to write FileHeader");
+            let mut stream = cfb
+                .create_stream("/FileHeader")
+                .expect("Failed to create FileHeader");
+            stream
+                .write_all(&file_header)
+                .expect("Failed to write FileHeader");
 
             // BodyText 스토리지 생성 (먼저 부모 디렉터리 생성)
-            cfb.create_storage("/BodyText").expect("Failed to create BodyText storage");
+            cfb.create_storage("/BodyText")
+                .expect("Failed to create BodyText storage");
 
             // Section0 스트림 생성 (압축된 레코드)
             let section_data = create_section_with_text(text);
             let compressed = compress_data(&section_data);
-            let mut stream = cfb.create_stream("/BodyText/Section0").expect("Failed to create Section0");
-            stream.write_all(&compressed).expect("Failed to write Section0");
+            let mut stream = cfb
+                .create_stream("/BodyText/Section0")
+                .expect("Failed to create Section0");
+            stream
+                .write_all(&compressed)
+                .expect("Failed to write Section0");
 
             cfb.flush().expect("Failed to flush CFB");
         }
@@ -145,9 +154,7 @@ mod tests {
 
     /// UTF-16LE 인코딩
     fn encode_utf16le(s: &str) -> Vec<u8> {
-        s.encode_utf16()
-            .flat_map(|c| c.to_le_bytes())
-            .collect()
+        s.encode_utf16().flat_map(|c| c.to_le_bytes()).collect()
     }
 
     /// zlib 압축
@@ -174,7 +181,11 @@ mod tests {
         // Assert
         assert!(result.is_ok(), "Should extract text: {:?}", result.err());
         let text = result.unwrap();
-        assert!(text.contains("안녕하세요"), "Should contain Korean text, got: {}", text);
+        assert!(
+            text.contains("안녕하세요"),
+            "Should contain Korean text, got: {}",
+            text
+        );
     }
 
     #[test]

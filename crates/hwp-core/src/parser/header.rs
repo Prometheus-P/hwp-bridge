@@ -1,6 +1,6 @@
 // crates/hwp-core/src/parser/header.rs
 
-use hwp_types::{DocumentProperties, FileHeader, HwpError, HwpVersion, HWP_SIGNATURE};
+use hwp_types::{DocumentProperties, FileHeader, HWP_SIGNATURE, HwpError, HwpVersion};
 
 /// FileHeader 크기 (256 bytes)
 pub const FILE_HEADER_SIZE: usize = 256;
@@ -29,7 +29,10 @@ pub fn parse_file_header(data: &[u8]) -> Result<FileHeader, HwpError> {
     let properties_bits = u32::from_le_bytes(data[36..40].try_into().unwrap());
     let properties = DocumentProperties::from_bits(properties_bits);
 
-    Ok(FileHeader { version, properties })
+    Ok(FileHeader {
+        version,
+        properties,
+    })
 }
 
 #[cfg(test)]
@@ -107,7 +110,10 @@ mod tests {
         let header = parse_file_header(&data).unwrap();
 
         assert!(!header.version.is_supported());
-        assert!(matches!(header.validate(), Err(HwpError::UnsupportedVersion(_))));
+        assert!(matches!(
+            header.validate(),
+            Err(HwpError::UnsupportedVersion(_))
+        ));
     }
 
     #[test]

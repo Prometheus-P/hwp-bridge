@@ -1,7 +1,40 @@
 // crates/hwp-types/src/lib.rs
 
+//! HWP 타입 정의 크레이트
+//!
+//! HWP 문서 파싱 및 변환에 사용되는 공용 타입 정의입니다.
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+// === Modules ===
+pub mod bindata;
+pub mod border_fill;
+pub mod control;
+pub mod document;
+pub mod face_name;
+pub mod record;
+pub mod structured;
+pub mod style;
+pub mod tags;
+
+// === Re-exports ===
+pub use bindata::{BinData, BinDataType};
+pub use border_fill::{
+    BorderFill, BorderLine, BorderLineType, FillGradient, FillImage, FillInfo, GradientType,
+};
+pub use control::{Control, Picture, Table, TableCell};
+pub use document::{Paragraph, Section};
+pub use face_name::{FaceName, FontLanguage, Panose, SubstituteFontType};
+pub use record::RecordHeader;
+pub use structured::{
+    ContentBlock, ContentLocation, InlineStyle, OutlineItem, PageOrientation, PageSetup,
+    ParagraphType, StructuredDocument, StructuredEquation, StructuredFootnote, StructuredImage,
+    StructuredMetadata, StructuredParagraph, StructuredSection, StructuredTable,
+    StructuredTableCell, StyleDefinitions, TextAlignment, TextRun,
+};
+pub use style::{Alignment, CharShape, CharShapeAttr, LineSpaceType, ParaShape, ParaShapeAttr};
+pub use tags::RecordTag;
 
 /// HWP Document File 시그니처 (32 bytes, null-padded)
 pub const HWP_SIGNATURE: &[u8; 32] = b"HWP Document File\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
@@ -48,7 +81,12 @@ pub struct HwpVersion {
 
 impl HwpVersion {
     pub fn new(major: u8, minor: u8, build: u8, revision: u8) -> Self {
-        Self { major, minor, build, revision }
+        Self {
+            major,
+            minor,
+            build,
+            revision,
+        }
     }
 
     /// 버전 바이트(4 bytes, little-endian)에서 파싱
@@ -70,7 +108,11 @@ impl HwpVersion {
 
 impl std::fmt::Display for HwpVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}.{}.{}", self.major, self.minor, self.build, self.revision)
+        write!(
+            f,
+            "{}.{}.{}.{}",
+            self.major, self.minor, self.build, self.revision
+        )
     }
 }
 
@@ -184,11 +226,46 @@ impl FileHeader {
     }
 }
 
-/// 파싱 결과물(HwpDocument)을 표현하는 최상위 구조체
-#[derive(Debug, Serialize, Deserialize, Default)]
+/// 파싱 결과물 최상위 구조체
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct HwpDocument {
+    /// 문서 메타데이터
     pub metadata: DocumentMetadata,
-    pub content: String, // 임시로 String, 나중엔 Vec<Section> 등 구조화
+    /// 문서 섹션 목록
+    pub sections: Vec<Section>,
+    /// 글자 모양 목록 (DocInfo에서 파싱)
+    pub char_shapes: Vec<CharShape>,
+    /// 문단 모양 목록 (DocInfo에서 파싱)
+    pub para_shapes: Vec<ParaShape>,
+    /// 바이너리 데이터 목록 (이미지, OLE 객체 등)
+    pub bin_data: Vec<BinData>,
+}
+
+impl HwpDocument {
+    /// 새 빈 문서 생성
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 섹션 추가
+    pub fn add_section(&mut self, section: Section) {
+        self.sections.push(section);
+    }
+
+    /// 바이너리 데이터 추가
+    pub fn add_bin_data(&mut self, data: BinData) {
+        self.bin_data.push(data);
+    }
+
+    /// 전체 텍스트 추출 (간소화 버전)
+    pub fn extract_text(&self) -> String {
+        self.sections
+            .iter()
+            .flat_map(|s| s.paragraphs.iter())
+            .map(|p| p.text.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -205,4 +282,123 @@ pub struct DocumentMetadata {
 pub struct ConvertOptions {
     pub extract_images: bool,
     pub include_comments: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// T048: JSON serialization roundtrip test for all major types
+    #[test]
+    fn test_should_roundtrip_hwp_document_when_serialized_to_json() {
+        // Arrange - Create a complete HwpDocument
+        let mut doc = HwpDocument::new();
+        doc.metadata.title = "Test Document".to_string();
+        doc.metadata.author = "Test Author".to_string();
+
+        // Add a section with paragraph
+        let mut section = Section::new();
+        let mut para = Paragraph::new("Hello, HWP!");
+        para.add_char_shape(0, 1);
+        section.push_paragraph(para);
+        doc.add_section(section);
+
+        // Add char_shapes
+        let mut char_shape = CharShape::default();
+        char_shape.base_size = 1000;
+        char_shape.text_color = 0x000000;
+        char_shape.attr = CharShapeAttr::from_bits(0b11); // bold + italic
+        doc.char_shapes.push(char_shape);
+
+        // Add para_shapes
+        let mut para_shape = ParaShape::default();
+        para_shape.margin_left = 100;
+        para_shape.attr = ParaShapeAttr::from_bits(0b1100); // center alignment
+        doc.para_shapes.push(para_shape);
+
+        // Add bin_data
+        let bin_data = BinData::new(1, BinDataType::Embedding)
+            .with_extension("png")
+            .with_data(vec![0x89, 0x50, 0x4E, 0x47]); // PNG magic bytes
+        doc.add_bin_data(bin_data);
+
+        // Act - Serialize and deserialize
+        let json = serde_json::to_string(&doc).expect("Failed to serialize HwpDocument");
+        let deserialized: HwpDocument =
+            serde_json::from_str(&json).expect("Failed to deserialize HwpDocument");
+
+        // Assert
+        assert_eq!(doc.metadata.title, deserialized.metadata.title);
+        assert_eq!(doc.metadata.author, deserialized.metadata.author);
+        assert_eq!(doc.sections.len(), deserialized.sections.len());
+        assert_eq!(
+            doc.sections[0].paragraphs[0].text,
+            deserialized.sections[0].paragraphs[0].text
+        );
+        assert_eq!(doc.char_shapes.len(), deserialized.char_shapes.len());
+        assert!(deserialized.char_shapes[0].attr.is_bold());
+        assert!(deserialized.char_shapes[0].attr.is_italic());
+        assert_eq!(doc.para_shapes.len(), deserialized.para_shapes.len());
+        assert_eq!(
+            deserialized.para_shapes[0].attr.alignment(),
+            Alignment::Center
+        );
+        assert_eq!(doc.bin_data.len(), deserialized.bin_data.len());
+        assert_eq!(
+            doc.bin_data[0].extension,
+            deserialized.bin_data[0].extension
+        );
+    }
+
+    #[test]
+    fn test_should_roundtrip_record_header_when_serialized() {
+        // Arrange
+        let header = RecordHeader::new(0x42, 5, 1000);
+
+        // Act
+        let json = serde_json::to_string(&header).expect("Failed to serialize");
+        let deserialized: RecordHeader =
+            serde_json::from_str(&json).expect("Failed to deserialize");
+
+        // Assert
+        assert_eq!(header, deserialized);
+    }
+
+    #[test]
+    fn test_should_roundtrip_control_table_when_serialized() {
+        // Arrange
+        let mut table = Table::new(2, 3);
+        table.add_cell(TableCell::new(0, 0).with_span(1, 1));
+        let control = Control::Table(table);
+
+        // Act
+        let json = serde_json::to_string(&control).expect("Failed to serialize");
+        let deserialized: Control = serde_json::from_str(&json).expect("Failed to deserialize");
+
+        // Assert
+        if let Control::Table(t) = deserialized {
+            assert_eq!(t.rows, 2);
+            assert_eq!(t.cols, 3);
+            assert_eq!(t.cells.len(), 1);
+        } else {
+            panic!("Expected Control::Table");
+        }
+    }
+
+    #[test]
+    fn test_should_roundtrip_file_header_when_serialized() {
+        // Arrange
+        let header = FileHeader {
+            version: HwpVersion::new(5, 1, 0, 0),
+            properties: DocumentProperties::from_bits(0b001), // compressed
+        };
+
+        // Act
+        let json = serde_json::to_string(&header).expect("Failed to serialize");
+        let deserialized: FileHeader = serde_json::from_str(&json).expect("Failed to deserialize");
+
+        // Assert
+        assert_eq!(header.version.major, deserialized.version.major);
+        assert!(deserialized.properties.is_compressed());
+    }
 }

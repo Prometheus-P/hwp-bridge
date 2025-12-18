@@ -48,7 +48,7 @@ pub fn extract_text_from_para_text(data: &[u8]) -> Result<String, HwpError> {
     }
 
     // UTF-16LE는 2바이트 단위
-    if data.len() % 2 != 0 {
+    if !data.len().is_multiple_of(2) {
         return Err(HwpError::ParseError(
             "Invalid UTF-16LE data: odd number of bytes".into(),
         ));
@@ -79,8 +79,8 @@ pub fn extract_text_from_para_text(data: &[u8]) -> Result<String, HwpError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use flate2::write::ZlibEncoder;
     use flate2::Compression;
+    use flate2::write::ZlibEncoder;
     use std::io::Write;
 
     // ═══════════════════════════════════════════════════════════════
@@ -102,9 +102,7 @@ mod tests {
 
     /// UTF-16LE로 인코딩된 문자열 생성
     fn encode_utf16le(s: &str) -> Vec<u8> {
-        s.encode_utf16()
-            .flat_map(|c| c.to_le_bytes())
-            .collect()
+        s.encode_utf16().flat_map(|c| c.to_le_bytes()).collect()
     }
 
     // ═══════════════════════════════════════════════════════════════

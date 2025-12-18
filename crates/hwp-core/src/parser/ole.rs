@@ -16,8 +16,7 @@ impl<F: Read + Seek> HwpOleFile<F> {
     /// OLE 파일을 열고 FileHeader를 파싱합니다.
     /// Fail-Fast: 암호화/배포용 문서는 즉시 에러를 반환합니다.
     pub fn open(inner: F) -> Result<Self, HwpError> {
-        let mut cfb = CompoundFile::open(inner)
-            .map_err(|e| HwpError::OleError(e.to_string()))?;
+        let mut cfb = CompoundFile::open(inner).map_err(|e| HwpError::OleError(e.to_string()))?;
 
         // FileHeader 스트림 읽기
         let header_data = Self::read_stream(&mut cfb, "/FileHeader")?;
@@ -41,9 +40,7 @@ impl<F: Read + Seek> HwpOleFile<F> {
             .map_err(|e| HwpError::OleError(format!("Failed to open stream '{}': {}", path, e)))?;
 
         let mut data = Vec::new();
-        stream
-            .read_to_end(&mut data)
-            .map_err(|e| HwpError::Io(e))?;
+        stream.read_to_end(&mut data).map_err(HwpError::Io)?;
 
         Ok(data)
     }

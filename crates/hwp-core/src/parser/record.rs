@@ -75,9 +75,9 @@ impl RecordHeader {
         let dword = u32::from_le_bytes(data[0..4].try_into().unwrap());
 
         // 비트 추출
-        let tag_id = (dword & 0x3FF) as u16;           // bits 0-9
-        let level = ((dword >> 10) & 0x3FF) as u16;   // bits 10-19
-        let size_field = (dword >> 20) & 0xFFF;       // bits 20-31
+        let tag_id = (dword & 0x3FF) as u16; // bits 0-9
+        let level = ((dword >> 10) & 0x3FF) as u16; // bits 10-19
+        let size_field = (dword >> 20) & 0xFFF; // bits 20-31
 
         // Extended size 처리
         if size_field == EXTENDED_SIZE_MARKER {
@@ -93,9 +93,23 @@ impl RecordHeader {
 
             let size = u32::from_le_bytes(data[4..8].try_into().unwrap());
 
-            Ok((Self { tag_id, level, size }, EXTENDED_HEADER_SIZE))
+            Ok((
+                Self {
+                    tag_id,
+                    level,
+                    size,
+                },
+                EXTENDED_HEADER_SIZE,
+            ))
         } else {
-            Ok((Self { tag_id, level, size: size_field }, HEADER_SIZE))
+            Ok((
+                Self {
+                    tag_id,
+                    level,
+                    size: size_field,
+                },
+                HEADER_SIZE,
+            ))
         }
     }
 }

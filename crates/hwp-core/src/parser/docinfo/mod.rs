@@ -123,7 +123,7 @@ mod tests {
         let size = data.len() as u32;
         assert!(size < 4095, "Size must be < 4095 for this test helper");
 
-        let dword: u32 = (tag_id as u32) | ((level as u32) << 10) | ((size as u32) << 20);
+        let dword: u32 = (tag_id as u32) | ((level as u32) << 10) | (size << 20);
 
         let mut result = Vec::new();
         result.extend_from_slice(&dword.to_le_bytes());

@@ -49,10 +49,7 @@ fn main() -> Result<()> {
 
     // Setup logging
     let log_level = if cli.verbose { "debug" } else { "info" };
-    fmt()
-        .with_env_filter(log_level)
-        .with_target(false)
-        .init();
+    fmt().with_env_filter(log_level).with_target(false).init();
 
     match cli.command {
         Commands::Extract { input, output } => {
@@ -70,8 +67,8 @@ fn main() -> Result<()> {
 fn extract_text(input: &PathBuf, output: Option<&std::path::Path>) -> Result<()> {
     info!("Extracting text from: {}", input.display());
 
-    let file = File::open(input)
-        .with_context(|| format!("Failed to open file: {}", input.display()))?;
+    let file =
+        File::open(input).with_context(|| format!("Failed to open file: {}", input.display()))?;
 
     let reader = BufReader::new(file);
     let mut extractor = HwpTextExtractor::open(reader)
@@ -100,8 +97,8 @@ fn extract_text(input: &PathBuf, output: Option<&std::path::Path>) -> Result<()>
 fn show_info(input: &PathBuf) -> Result<()> {
     info!("Reading file info: {}", input.display());
 
-    let file = File::open(input)
-        .with_context(|| format!("Failed to open file: {}", input.display()))?;
+    let file =
+        File::open(input).with_context(|| format!("Failed to open file: {}", input.display()))?;
 
     let reader = BufReader::new(file);
     let ole = hwp_core::HwpOleFile::open(reader)

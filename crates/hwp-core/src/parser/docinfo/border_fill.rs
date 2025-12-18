@@ -28,8 +28,8 @@ use crate::parser::primitives::parse_colorref;
 /// - background_color: u32 = 4 bytes
 /// - pattern_color: u32 = 4 bytes
 /// - pattern_type: u32 = 4 bytes
-/// - [optional] image_info (if fill_type & 0x04)
-/// - [optional] gradient_info (if fill_type & 0x02)
+/// - \[optional\] image_info (if fill_type & 0x04)
+/// - \[optional\] gradient_info (if fill_type & 0x02)
 pub fn parse_border_fill(input: &[u8]) -> IResult<&[u8], BorderFill> {
     // 속성 플래그
     let (input, properties) = le_u16(input)?;

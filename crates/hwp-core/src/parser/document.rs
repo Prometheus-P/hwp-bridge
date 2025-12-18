@@ -148,7 +148,7 @@ mod tests {
 
     /// 레코드 헤더 생성
     fn create_record_header(tag_id: u16, level: u16, size: u32) -> Vec<u8> {
-        let dword: u32 = (tag_id as u32) | ((level as u32) << 10) | ((size as u32) << 20);
+        let dword: u32 = (tag_id as u32) | ((level as u32) << 10) | (size << 20);
         dword.to_le_bytes().to_vec()
     }
 

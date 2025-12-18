@@ -15,10 +15,10 @@ use crate::parser::primitives::parse_utf16le_string;
 /// # Format (가변 길이)
 /// - properties: u8 = 1 byte
 /// - name: UTF-16LE string (length-prefixed)
-/// - [optional] substitute_type: u8 (if properties & 0x01)
-/// - [optional] substitute_name: UTF-16LE string (if properties & 0x01)
-/// - [optional] panose: [u8; 10] (if properties & 0x80)
-/// - [optional] default_name: UTF-16LE string (if properties & 0x04)
+/// - \[optional\] substitute_type: u8 (if properties & 0x01)
+/// - \[optional\] substitute_name: UTF-16LE string (if properties & 0x01)
+/// - \[optional\] panose: \[u8; 10\] (if properties & 0x80)
+/// - \[optional\] default_name: UTF-16LE string (if properties & 0x04)
 pub fn parse_face_name(input: &[u8]) -> IResult<&[u8], FaceName> {
     // 속성 플래그
     let (input, properties) = le_u8(input)?;

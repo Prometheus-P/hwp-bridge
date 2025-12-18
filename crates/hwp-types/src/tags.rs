@@ -401,6 +401,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_should_distinguish_docinfo_from_bodytext_tags() {
         // Arrange & Act & Assert
         // DocInfo tags are in 0x00-0x1F range

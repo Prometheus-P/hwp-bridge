@@ -475,9 +475,11 @@ mod tests {
     #[test]
     fn test_should_serialize_charshape_to_json_when_serde_used() {
         // Arrange
-        let mut shape = CharShape::default();
-        shape.base_size = 1000;
-        shape.attr = CharShapeAttr::from_bits(0b0000_0011);
+        let shape = CharShape {
+            base_size: 1000,
+            attr: CharShapeAttr::from_bits(0b0000_0011),
+            ..Default::default()
+        };
 
         // Act
         let json = serde_json::to_string(&shape).unwrap();
@@ -492,9 +494,11 @@ mod tests {
     #[test]
     fn test_should_serialize_parashape_to_json_when_serde_used() {
         // Arrange
-        let mut shape = ParaShape::default();
-        shape.margin_left = 1000;
-        shape.attr = ParaShapeAttr::from_bits(0b0000_1100); // Center
+        let shape = ParaShape {
+            margin_left: 1000,
+            attr: ParaShapeAttr::from_bits(0b0000_1100), // Center
+            ..Default::default()
+        };
 
         // Act
         let json = serde_json::to_string(&shape).unwrap();

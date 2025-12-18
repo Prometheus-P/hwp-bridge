@@ -348,7 +348,7 @@ fn update_statistics(doc: &mut StructuredDocument) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hwp_types::{CharShapeAttr, ParaShapeAttr};
+    use hwp_types::CharShapeAttr;
 
     #[test]
     fn test_should_convert_empty_document() {
@@ -390,9 +390,11 @@ mod tests {
         let mut doc = HwpDocument::new();
 
         // Add char shape (bold)
-        let mut cs = CharShape::default();
-        cs.attr = CharShapeAttr::from_bits(0b1); // bold
-        cs.base_size = 1200; // 12pt
+        let cs = CharShape {
+            attr: CharShapeAttr::from_bits(0b1), // bold
+            base_size: 1200,                     // 12pt
+            ..Default::default()
+        };
         doc.char_shapes.push(cs);
 
         let mut section = Section::new();

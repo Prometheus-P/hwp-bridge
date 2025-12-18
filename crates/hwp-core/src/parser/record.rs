@@ -193,7 +193,7 @@ mod tests {
         assert!(level < 1024, "level must be < 1024 (10 bits)");
         assert!(size < 4095, "size must be < 4095 for normal header");
 
-        let dword: u32 = (tag_id as u32) | ((level as u32) << 10) | ((size as u32) << 20);
+        let dword: u32 = (tag_id as u32) | ((level as u32) << 10) | (size << 20);
         dword.to_le_bytes().to_vec()
     }
 

@@ -304,16 +304,20 @@ mod tests {
         doc.add_section(section);
 
         // Add char_shapes
-        let mut char_shape = CharShape::default();
-        char_shape.base_size = 1000;
-        char_shape.text_color = 0x000000;
-        char_shape.attr = CharShapeAttr::from_bits(0b11); // bold + italic
+        let char_shape = CharShape {
+            base_size: 1000,
+            text_color: 0x000000,
+            attr: CharShapeAttr::from_bits(0b11), // bold + italic
+            ..Default::default()
+        };
         doc.char_shapes.push(char_shape);
 
         // Add para_shapes
-        let mut para_shape = ParaShape::default();
-        para_shape.margin_left = 100;
-        para_shape.attr = ParaShapeAttr::from_bits(0b1100); // center alignment
+        let para_shape = ParaShape {
+            margin_left: 100,
+            attr: ParaShapeAttr::from_bits(0b1100), // center alignment
+            ..Default::default()
+        };
         doc.para_shapes.push(para_shape);
 
         // Add bin_data

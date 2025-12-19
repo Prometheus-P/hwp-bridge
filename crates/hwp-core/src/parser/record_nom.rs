@@ -4,8 +4,18 @@
 //!
 //! HWP 문서의 레코드 헤더 및 데이터를 nom 파서 콤비네이터로 처리합니다.
 
-use hwp_types::{HwpError, tags::RecordTag};
-use nom::{IResult, Parser, bytes::complete::take, multi::many0, number::complete::le_u32};
+use crate::parser::{bodytext::table::parse_table, section::extract_text_from_para_text};
+use hwp_types::{
+    CellCoordinate, HwpError, ParagraphHeader, SemanticParagraph, SemanticSpan, SemanticTable,
+    SemanticTableCell, tags::RecordTag,
+};
+use nom::{
+    IResult, Parser,
+    bytes::complete::take,
+    multi::many0,
+    number::complete::{le_u8, le_u16, le_u32},
+};
+use std::borrow::Cow;
 
 /// Extended size marker (size가 4095면 다음 4바이트에 실제 크기)
 const EXTENDED_SIZE_MARKER: u32 = 0xFFF;
@@ -200,6 +210,108 @@ impl<'a> Iterator for FilteredRecordIterator<'a> {
             }
         }
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 모델 변환
+// ═══════════════════════════════════════════════════════════════════════════
+
+impl<'a> TryFrom<&RecordNom<'a>> for SemanticParagraph<'a> {
+    type Error = HwpError;
+
+    fn try_from(record: &RecordNom<'a>) -> Result<Self, Self::Error> {
+        match record.tag() {
+            RecordTag::ParaHeader => {
+                let (_, header) = parse_para_header_nom(record.data).map_err(|_| {
+                    HwpError::ParseError("Failed to parse PARA_HEADER payload".to_string())
+                })?;
+                Ok(SemanticParagraph::with_header(header))
+            }
+            RecordTag::ParaText => {
+                let text = extract_text_from_para_text(record.data)?;
+                let span = SemanticSpan {
+                    start: 0,
+                    len: text.chars().count(),
+                    text: Cow::Owned(text.clone()),
+                    char_shape_id: None,
+                };
+                Ok(SemanticParagraph {
+                    header: None,
+                    spans: vec![span],
+                    text: Cow::Owned(text),
+                })
+            }
+            _ => Err(HwpError::ParseError(format!(
+                "Record {:?} is not a paragraph tag",
+                record.tag()
+            ))),
+        }
+    }
+}
+
+impl<'a> TryFrom<&RecordNom<'a>> for SemanticTable<'a> {
+    type Error = HwpError;
+
+    fn try_from(record: &RecordNom<'a>) -> Result<Self, Self::Error> {
+        if record.tag() != RecordTag::Table {
+            return Err(HwpError::ParseError(format!(
+                "Record {:?} is not TABLE",
+                record.tag()
+            )));
+        }
+
+        let (_, parsed) = parse_table(record.data)
+            .map_err(|_| HwpError::ParseError("Failed to parse TABLE record".into()))?;
+
+        let mut semantic = SemanticTable::new(parsed.rows, parsed.cols);
+        semantic.properties = parsed.properties;
+
+        for cell in parsed.cells {
+            let mut semantic_cell = SemanticTableCell::new(CellCoordinate {
+                row: cell.row as usize,
+                col: cell.col as usize,
+            });
+            semantic_cell.col_span = cell.col_span;
+            semantic_cell.row_span = cell.row_span;
+            semantic_cell.size = (cell.width, cell.height);
+            semantic_cell.field_name = Cow::Owned(cell.field_name.clone());
+
+            if !cell.text.is_empty() {
+                semantic_cell
+                    .paragraphs
+                    .push(SemanticParagraph::new_text(cell.text.clone()));
+            }
+
+            semantic.push_cell(semantic_cell);
+        }
+
+        Ok(semantic)
+    }
+}
+
+fn parse_para_header_nom(input: &[u8]) -> IResult<&[u8], ParagraphHeader> {
+    let (input, control_mask) = le_u32(input)?;
+    let (input, para_shape_id) = le_u16(input)?;
+    let (input, style_id) = le_u8(input)?;
+    let (input, column_type) = le_u8(input)?;
+    let (input, char_shape_count) = le_u16(input)?;
+    let (input, range_tag_count) = le_u16(input)?;
+    let (input, line_align_count) = le_u16(input)?;
+    let (input, instance_id) = le_u32(input)?;
+
+    Ok((
+        input,
+        ParagraphHeader {
+            control_mask,
+            para_shape_id,
+            style_id,
+            column_type,
+            char_shape_count,
+            range_tag_count,
+            line_align_count,
+            instance_id,
+        },
+    ))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

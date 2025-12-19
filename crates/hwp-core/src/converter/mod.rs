@@ -6,4 +6,4 @@
 
 pub mod structured;
 
-pub use structured::to_structured_document;
+pub use structured::{to_semantic_markdown, to_structured_document};

@@ -5,10 +5,12 @@
 //! 파싱된 HWP 문서를 LLM 친화적인 구조화 문서로 변환합니다.
 
 use hwp_types::{
-    Alignment, CharShape, ContentBlock, Control, FileHeader, HwpDocument, InlineStyle, ParaShape,
-    Paragraph, ParagraphType, Section, StructuredDocument, StructuredMetadata, StructuredParagraph,
-    StructuredSection, StructuredTable, StructuredTableCell, Table, TextAlignment, TextRun,
+    Alignment, CellBlock, CharShape, ContentBlock, Control, FileHeader, HwpDocument, InlineStyle,
+    ParaShape, Paragraph, ParagraphType, Section, StructuredDocument, StructuredMetadata,
+    StructuredParagraph, StructuredSection, StructuredTable, StructuredTableCell, Table,
+    TextAlignment, TextRun,
 };
+use std::fmt::Write;
 
 /// HwpDocument를 StructuredDocument로 변환
 pub fn to_structured_document(
@@ -284,26 +286,44 @@ fn detect_paragraph_type(runs: &[TextRun], para_shape: Option<&ParaShape>) -> Pa
 /// Table을 StructuredTable로 변환
 pub fn convert_table(table: &Table) -> StructuredTable {
     let mut st = StructuredTable::new(table.rows as usize, table.cols as usize);
+    if table.rows > 0 {
+        st.header_rows = 1;
+    }
 
-    // 셀을 행별로 그룹화
     let mut rows: Vec<Vec<StructuredTableCell>> = vec![Vec::new(); table.rows as usize];
 
     for cell in &table.cells {
         let row_idx = cell.row as usize;
-        if row_idx < rows.len() {
-            let sc = StructuredTableCell {
-                content: vec![StructuredParagraph::from_text(&cell.text)],
-                col_span: cell.col_span as usize,
-                row_span: cell.row_span as usize,
-                is_header: row_idx == 0, // 첫 행을 헤더로 가정
-            };
-            rows[row_idx].push(sc);
+        let col_idx = cell.col as usize;
+        if row_idx >= rows.len() {
+            continue;
         }
+
+        let mut structured_cell = if cell.text.is_empty() {
+            StructuredTableCell {
+                blocks: Vec::new(),
+                ..StructuredTableCell::from_text("")
+            }
+        } else {
+            StructuredTableCell::from_text(cell.text.clone())
+        };
+
+        structured_cell.col_span = cell.col_span as usize;
+        structured_cell.row_span = cell.row_span as usize;
+        structured_cell.is_header = row_idx < st.header_rows;
+        structured_cell = structured_cell.with_position(row_idx, col_idx);
+
+        if structured_cell.blocks.is_empty() {
+            structured_cell.push_block(CellBlock::RawText {
+                text: format!("cell({},{})", row_idx + 1, col_idx + 1),
+            });
+        }
+
+        rows[row_idx].push(structured_cell);
     }
 
-    st.rows = rows;
-    if table.rows > 0 {
-        st.header_rows = 1;
+    for row in rows {
+        st.add_row(row);
     }
 
     st
@@ -343,6 +363,145 @@ fn colorref_to_hex(colorref: u32) -> String {
 fn update_statistics(doc: &mut StructuredDocument) {
     let text = doc.extract_text();
     doc.metadata.char_count = Some(text.chars().count() as u32);
+}
+
+/// StructuredDocument → Semantic Markdown
+pub fn to_semantic_markdown(doc: &StructuredDocument) -> String {
+    let mut output = String::new();
+    let mut table_counter = 0usize;
+
+    if let Some(title) = &doc.metadata.title {
+        let _ = writeln!(output, "# {}", title.trim());
+        output.push('\n');
+    }
+
+    for (section_idx, section) in doc.sections.iter().enumerate() {
+        let _ = writeln!(output, "## Section {}", section_idx + 1);
+        output.push('\n');
+
+        for block in &section.content {
+            match block {
+                ContentBlock::Paragraph(p) => {
+                    output.push_str(&render_paragraph_markdown(p));
+                }
+                ContentBlock::Table(t) => {
+                    render_table_markdown(
+                        t,
+                        &mut output,
+                        1,
+                        &mut table_counter,
+                        &format!("sec{}-root", section_idx + 1),
+                    );
+                }
+                ContentBlock::Image(img) => {
+                    let alt = img.alt_text.clone().unwrap_or_default();
+                    let _ = writeln!(output, "![{}](bin:{:?})\n", alt, img.bin_data_id);
+                }
+                ContentBlock::Equation(eq) => {
+                    if let Some(latex) = &eq.latex {
+                        let _ = writeln!(output, "$${}$$\n", latex);
+                    } else {
+                        let _ = writeln!(output, "`{}`\n", eq.text);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    output
+}
+
+fn render_paragraph_markdown(paragraph: &StructuredParagraph) -> String {
+    let text = paragraph.plain_text();
+    if text.trim().is_empty() {
+        return String::new();
+    }
+
+    match &paragraph.paragraph_type {
+        ParagraphType::Heading { level } => {
+            let hashes = "#".repeat((*level).clamp(1, 6) as usize);
+            format!("{hashes} {}\n\n", text.trim())
+        }
+        ParagraphType::BulletList { .. } => format!("- {}\n", text.trim()),
+        ParagraphType::NumberedList { number } => {
+            format!("{} {}\n", number.trim(), text.trim())
+        }
+        ParagraphType::Quote => format!("> {}\n\n", text.trim()),
+        ParagraphType::Code { .. } => format!("```\n{}\n```\n\n", text.trim_end()),
+        _ => format!("{}\n\n", text.trim_end()),
+    }
+}
+
+fn render_table_markdown(
+    table: &StructuredTable,
+    buf: &mut String,
+    depth: usize,
+    counter: &mut usize,
+    anchor_prefix: &str,
+) {
+    let anchor = format!("{}-tbl{}", anchor_prefix, *counter);
+    *counter += 1;
+
+    let _ = writeln!(
+        buf,
+        "```table depth={} anchor={} rows={} cols={}",
+        depth, anchor, table.row_count, table.col_count
+    );
+    if let Some(caption) = &table.caption {
+        let _ = writeln!(buf, "caption: {}", caption);
+    }
+
+    for (row_idx, row) in table.rows.iter().enumerate() {
+        let cells: Vec<String> = row
+            .iter()
+            .filter(|cell| !cell.hidden_by_span)
+            .map(|cell| {
+                let mut text = cell.plain_text();
+                if text.trim().is_empty() {
+                    if cell.position.row != usize::MAX && cell.position.col != usize::MAX {
+                        text = format!("(r{}c{})", cell.position.row + 1, cell.position.col + 1);
+                    }
+                }
+                if cell.col_span > 1 || cell.row_span > 1 {
+                    text.push_str(&format!(" <span c={} r={}>", cell.col_span, cell.row_span));
+                }
+                if !cell.nested_tables().is_empty() {
+                    text.push_str(&format!(" [nested:{}]", cell.nested_tables().len()));
+                }
+                text
+            })
+            .collect();
+
+        let _ = writeln!(buf, "| {} |", cells.join(" | "));
+        if row_idx < table.header_rows && row_idx == table.header_rows - 1 {
+            let header_sep = vec!["---"; cells.len()];
+            let _ = writeln!(buf, "| {} |", header_sep.join(" | "));
+        }
+    }
+
+    buf.push_str("```\n\n");
+
+    for row in &table.rows {
+        for cell in row {
+            if cell.hidden_by_span {
+                continue;
+            }
+            for nested in cell.nested_tables() {
+                let nested_anchor = if cell.position.row != usize::MAX {
+                    format!(
+                        "{}-r{}c{}",
+                        anchor,
+                        cell.position.row + 1,
+                        cell.position.col + 1
+                    )
+                } else {
+                    format!("{anchor}-child")
+                };
+                render_table_markdown(nested, buf, depth + 1, counter, &nested_anchor);
+            }
+        }
+    }
 }
 
 #[cfg(test)]

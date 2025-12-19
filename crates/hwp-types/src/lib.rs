@@ -28,10 +28,11 @@ pub use document::{Paragraph, Section};
 pub use face_name::{FaceName, FontLanguage, Panose, SubstituteFontType};
 pub use record::RecordHeader;
 pub use structured::{
-    ContentBlock, ContentLocation, InlineStyle, OutlineItem, PageOrientation, PageSetup,
-    ParagraphType, StructuredDocument, StructuredEquation, StructuredFootnote, StructuredImage,
-    StructuredMetadata, StructuredParagraph, StructuredSection, StructuredTable,
-    StructuredTableCell, StyleDefinitions, TextAlignment, TextRun,
+    CellBlock, CellCoordinate, ContentBlock, ContentLocation, InlineStyle, OutlineItem,
+    PageOrientation, PageSetup, ParagraphHeader, ParagraphType, SemanticParagraph, SemanticSpan,
+    SemanticTable, SemanticTableCell, StructuredDocument, StructuredEquation, StructuredFootnote,
+    StructuredImage, StructuredMetadata, StructuredParagraph, StructuredSection, StructuredTable,
+    StructuredTableCell, StyleDefinitions, TableGridSlot, TableMergeRegion, TextAlignment, TextRun,
 };
 pub use style::{Alignment, CharShape, CharShapeAttr, LineSpaceType, ParaShape, ParaShapeAttr};
 pub use tags::RecordTag;

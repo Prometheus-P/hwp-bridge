@@ -6,6 +6,7 @@
 //! JSON 직렬화 시 가독성과 의미 전달에 최적화되어 있습니다.
 
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 최상위 문서 구조
@@ -446,6 +447,12 @@ pub struct StructuredTable {
     /// 열 너비 비율
     #[serde(skip_serializing_if = "Option::is_none")]
     pub column_widths: Option<Vec<f32>>,
+    /// 병합 정보
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub merged_cells: Vec<TableMergeRegion>,
+    /// 표의 격자 맵
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub grid: Vec<Vec<TableGridSlot>>,
 }
 
 fn is_zero_usize(n: &usize) -> bool {
@@ -464,13 +471,77 @@ impl StructuredTable {
     }
 
     /// 행 추가
-    pub fn add_row(&mut self, row: Vec<StructuredTableCell>) {
+    pub fn add_row(&mut self, mut row: Vec<StructuredTableCell>) {
+        let row_index = self.rows.len();
+        for (col_index, cell) in row.iter_mut().enumerate() {
+            if cell.position.row == usize::MAX && cell.position.col == usize::MAX {
+                cell.position = CellCoordinate {
+                    row: row_index,
+                    col: col_index,
+                };
+            }
+        }
         self.rows.push(row);
+        self.rebuild_grid();
     }
 
     /// 셀 접근
     pub fn get_cell(&self, row: usize, col: usize) -> Option<&StructuredTableCell> {
         self.rows.get(row).and_then(|r| r.get(col))
+    }
+
+    /// 격자 정보를 재구축합니다.
+    pub fn rebuild_grid(&mut self) {
+        if self.row_count == 0 || self.col_count == 0 {
+            self.grid.clear();
+            self.merged_cells.clear();
+            return;
+        }
+
+        let mut grid = Vec::with_capacity(self.row_count);
+        for r in 0..self.row_count {
+            let mut row = Vec::with_capacity(self.col_count);
+            for c in 0..self.col_count {
+                row.push(TableGridSlot {
+                    position: CellCoordinate { row: r, col: c },
+                    anchor: CellCoordinate { row: r, col: c },
+                    is_anchor: true,
+                });
+            }
+            grid.push(row);
+        }
+        let mut merges = Vec::new();
+
+        for row in &self.rows {
+            for cell in row {
+                let anchor = cell.position;
+                let col_span = cell.col_span.max(1);
+                let row_span = cell.row_span.max(1);
+
+                if col_span > 1 || row_span > 1 {
+                    merges.push(TableMergeRegion {
+                        anchor,
+                        col_span,
+                        row_span,
+                    });
+                }
+
+                let end_row = (anchor.row + row_span).min(self.row_count);
+                let end_col = (anchor.col + col_span).min(self.col_count);
+                for r in anchor.row..end_row {
+                    for c in anchor.col..end_col {
+                        if let Some(slot) = grid.get_mut(r).and_then(|rr| rr.get_mut(c)) {
+                            slot.position = CellCoordinate { row: r, col: c };
+                            slot.anchor = anchor;
+                            slot.is_anchor = r == anchor.row && c == anchor.col;
+                        }
+                    }
+                }
+            }
+        }
+
+        self.grid = grid;
+        self.merged_cells = merges;
     }
 
     /// 텍스트 표현으로 변환 (Markdown 스타일)
@@ -482,7 +553,17 @@ impl StructuredTable {
         }
 
         for (i, row) in self.rows.iter().enumerate() {
-            let row_text: Vec<String> = row.iter().map(|c| c.plain_text()).collect();
+            let row_text: Vec<String> = row
+                .iter()
+                .filter(|c| !c.hidden_by_span)
+                .map(|c| {
+                    let mut text = c.plain_text();
+                    if c.col_span > 1 || c.row_span > 1 {
+                        text.push_str(&format!(" [{}x{}]", c.col_span, c.row_span));
+                    }
+                    text
+                })
+                .collect();
             result.push_str(&format!("| {} |", row_text.join(" | ")));
             result.push('\n');
 
@@ -501,8 +582,11 @@ impl StructuredTable {
 /// 표 셀
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StructuredTableCell {
-    /// 셀 콘텐츠 (문단들)
-    pub content: Vec<StructuredParagraph>,
+    /// 셀 위치
+    pub position: CellCoordinate,
+    /// 셀 콘텐츠
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub blocks: Vec<CellBlock>,
     /// 열 병합
     #[serde(skip_serializing_if = "is_one", default = "default_one")]
     pub col_span: usize,
@@ -512,6 +596,9 @@ pub struct StructuredTableCell {
     /// 헤더 셀 여부
     #[serde(skip_serializing_if = "std::ops::Not::not", default)]
     pub is_header: bool,
+    /// 병합으로 인해 표시되지 않는 셀
+    #[serde(skip_serializing_if = "std::ops::Not::not", default)]
+    pub hidden_by_span: bool,
 }
 
 fn is_one(n: &usize) -> bool {
@@ -526,10 +613,14 @@ impl StructuredTableCell {
     /// 텍스트로 셀 생성
     pub fn from_text(text: impl Into<String>) -> Self {
         Self {
-            content: vec![StructuredParagraph::from_text(text)],
+            position: CellCoordinate { row: 0, col: 0 },
+            blocks: vec![CellBlock::Paragraph(StructuredParagraph::from_text(
+                text.into(),
+            ))],
             col_span: 1,
             row_span: 1,
             is_header: false,
+            hidden_by_span: false,
         }
     }
 
@@ -548,12 +639,79 @@ impl StructuredTableCell {
 
     /// plain text 추출
     pub fn plain_text(&self) -> String {
-        self.content
-            .iter()
-            .map(|p| p.plain_text())
-            .collect::<Vec<_>>()
-            .join("\n")
+        let mut text = Vec::new();
+        for block in &self.blocks {
+            match block {
+                CellBlock::Paragraph(p) => text.push(p.plain_text()),
+                CellBlock::Table(t) => text.push(t.to_text()),
+                CellBlock::RawText { text: raw } => text.push(raw.clone()),
+            }
+        }
+        text.join("\n")
     }
+
+    /// 위치 지정
+    pub fn with_position(mut self, row: usize, col: usize) -> Self {
+        self.position = CellCoordinate { row, col };
+        self
+    }
+
+    /// 블록 추가
+    pub fn push_block(&mut self, block: CellBlock) {
+        self.blocks.push(block);
+    }
+
+    /// 중첩 표 얻기
+    pub fn nested_tables(&self) -> Vec<&StructuredTable> {
+        self.blocks
+            .iter()
+            .filter_map(|block| match block {
+                CellBlock::Table(table) => Some(table.as_ref()),
+                _ => None,
+            })
+            .collect()
+    }
+}
+
+/// 셀 좌표
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct CellCoordinate {
+    pub row: usize,
+    pub col: usize,
+}
+
+impl Default for CellCoordinate {
+    fn default() -> Self {
+        Self {
+            row: usize::MAX,
+            col: usize::MAX,
+        }
+    }
+}
+
+/// 병합 영역 정보
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct TableMergeRegion {
+    pub anchor: CellCoordinate,
+    pub col_span: usize,
+    pub row_span: usize,
+}
+
+/// 격자 슬롯
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct TableGridSlot {
+    pub position: CellCoordinate,
+    pub anchor: CellCoordinate,
+    pub is_anchor: bool,
+}
+
+/// 셀 콘텐츠 블록 (문단/표/Raw 텍스트)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "block_type", rename_all = "snake_case")]
+pub enum CellBlock {
+    Paragraph(StructuredParagraph),
+    Table(Box<StructuredTable>),
+    RawText { text: String },
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -661,6 +819,124 @@ pub struct NamedCharacterStyle {
     pub bold: bool,
     #[serde(skip_serializing_if = "std::ops::Not::not", default)]
     pub italic: bool,
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Semantic (zero-copy) Models
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// nom 파서가 즉시 소비할 수 있는 문단 프래그먼트
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
+pub struct SemanticParagraph<'a> {
+    /// 문단 헤더 (PARA_HEADER)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub header: Option<ParagraphHeader>,
+    /// 문단 텍스트 (PARA_TEXT)
+    #[serde(borrow)]
+    pub text: Cow<'a, str>,
+    /// 텍스트 구간 정보
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub spans: Vec<SemanticSpan<'a>>,
+}
+
+impl<'a> SemanticParagraph<'a> {
+    pub fn new_text<T: Into<Cow<'a, str>>>(text: T) -> Self {
+        Self {
+            header: None,
+            spans: Vec::new(),
+            text: text.into(),
+        }
+    }
+
+    pub fn with_header(header: ParagraphHeader) -> Self {
+        Self {
+            header: Some(header),
+            text: Cow::Borrowed(""),
+            spans: Vec::new(),
+        }
+    }
+}
+
+/// 문단 헤더 메타데이터
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ParagraphHeader {
+    pub control_mask: u32,
+    pub para_shape_id: u16,
+    pub style_id: u8,
+    pub column_type: u8,
+    pub char_shape_count: u16,
+    pub range_tag_count: u16,
+    pub line_align_count: u16,
+    pub instance_id: u32,
+}
+
+/// 텍스트 런 메타데이터
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
+pub struct SemanticSpan<'a> {
+    pub start: usize,
+    pub len: usize,
+    #[serde(borrow)]
+    pub text: Cow<'a, str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub char_shape_id: Option<u16>,
+}
+
+/// nom 기반 표(Semantic) 표현
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
+pub struct SemanticTable<'a> {
+    pub properties: u32,
+    pub rows: u16,
+    pub cols: u16,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub cells: Vec<SemanticTableCell<'a>>,
+}
+
+impl<'a> SemanticTable<'a> {
+    pub fn new(rows: u16, cols: u16) -> Self {
+        Self {
+            properties: 0,
+            rows,
+            cols,
+            cells: Vec::new(),
+        }
+    }
+
+    pub fn push_cell(&mut self, cell: SemanticTableCell<'a>) {
+        self.cells.push(cell);
+    }
+}
+
+/// zero-copy 표 셀
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
+pub struct SemanticTableCell<'a> {
+    pub address: CellCoordinate,
+    pub col_span: u16,
+    pub row_span: u16,
+    pub size: (u32, u32),
+    #[serde(borrow)]
+    pub field_name: Cow<'a, str>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub paragraphs: Vec<SemanticParagraph<'a>>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub nested_tables: Vec<SemanticTable<'a>>,
+}
+
+impl<'a> SemanticTableCell<'a> {
+    pub fn new(address: CellCoordinate) -> Self {
+        Self {
+            address,
+            col_span: 1,
+            row_span: 1,
+            size: (0, 0),
+            field_name: Cow::Borrowed(""),
+            paragraphs: Vec::new(),
+            nested_tables: Vec::new(),
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

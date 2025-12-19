@@ -1,0 +1,79 @@
+{
+  "mcp_version": "1.0",
+  "name": "hwp-bridge",
+  "description": "A high-fidelity HWP parsing engine and MCP server.",
+  "entrypoint": {
+    "command": "./target/release/hwp-mcp",
+    "args": [],
+    "env": {
+      "RUST_LOG": "info",
+      "HWP_BRIDGE_CACHE": "${SMITHERY_CACHE:-$HOME/.cache/hwp-bridge}",
+      "HWP_OLE_TEMP": "${TMPDIR:-/tmp}/hwp-ole"
+    }
+  },
+  "smithery": {
+    "process": {
+      "command": "./target/release/hwp-mcp",
+      "cwd": ".",
+      "args": [],
+      "env": {
+        "RUST_LOG": "info",
+        "HWP_BRIDGE_CACHE": "${SMITHERY_CACHE:-$HOME/.cache/hwp-bridge}",
+        "HWP_OLE_TEMP": "${TMPDIR:-/tmp}/hwp-ole",
+        "MCP_SOCKET_TIMEOUT": "60"
+      }
+    }
+  },
+  "tools": {
+    "hwp.inspect": {
+      "description": "Inspect a HWP file and return its metadata.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "The HWP file to inspect (e.g., 'my-doc.hwp').",
+            "x-media-types": ["application/x-hwp"]
+          }
+        },
+        "required": ["file"]
+      },
+      "return": {
+        "type": "object",
+        "description": "The metadata of the HWP file.",
+        "properties": {
+          "title": { "type": "string" },
+          "author": { "type": "string" },
+          "created_at": { "type": "string" },
+          "is_encrypted": { "type": "boolean" },
+          "is_distributed": { "type": "boolean" }
+        }
+      }
+    },
+    "hwp.to_markdown": {
+      "description": "Convert a HWP file to highly structured markdown.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "The HWP file to convert (e.g., 'my-doc.hwp').",
+            "x-media-types": ["application/x-hwp"]
+          },
+          "format": {
+            "type": "string",
+            "description": "The output format (e.g., 'semantic-markdown', 'plain-text').",
+            "default": "semantic-markdown"
+          }
+        },
+        "required": ["file"]
+      },
+      "return": {
+        "type": "string",
+        "description": "The converted markdown content."
+      }
+    }
+  }
+}

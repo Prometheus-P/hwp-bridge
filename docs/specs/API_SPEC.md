@@ -1,3 +1,6 @@
+> ⚠️ Note (Option A): `hwp-web` is intentionally excluded/disabled in this repo snapshot.
+> This document may still mention `hwp-web` as a *planned* component.
+
 # API_SPEC.md - HwpBridge API Specification
 
 > **Version:** 1.0.0
@@ -16,205 +19,11 @@ HwpBridge는 두 가지 인터페이스를 제공합니다:
 
 ---
 
-## 2. REST API (hwp-web)
+## 2. Web REST API (hwp-web) — planned (disabled)
 
-### 2.1 Base URL
-
-```
-Development: http://localhost:3000
-Production:  https://api.hwpbridge.io
-```
-
-### 2.2 Common Headers
-
-| Header | Value | Required |
-|--------|-------|----------|
-| Content-Type | application/json or multipart/form-data | Yes |
-| Authorization | Bearer {token} | For Google API |
-| X-Request-ID | UUID | Optional |
-
-### 2.3 Error Response Format
-
-```json
-{
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable message",
-    "details": { }
-  }
-}
-```
-
-### 2.4 Error Codes
-
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| INVALID_FILE | 400 | 유효하지 않은 HWP 파일 |
-| FILE_TOO_LARGE | 413 | 파일 크기 초과 (10MB) |
-| ENCRYPTED_DOCUMENT | 422 | 암호화된 문서 |
-| DISTRIBUTION_DOCUMENT | 422 | 배포용 문서 |
-| UNSUPPORTED_VERSION | 422 | 지원하지 않는 HWP 버전 |
-| PARSE_ERROR | 500 | 파싱 중 오류 발생 |
-| GOOGLE_API_ERROR | 502 | Google API 오류 |
-| RATE_LIMITED | 429 | 요청 한도 초과 |
-
----
-
-## 3. Endpoints
-
-### 3.1 Health Check
-
-```
-GET /health
-```
-
-**Response:**
-
-```json
-{
-  "status": "healthy",
-  "version": "0.1.0",
-  "uptime_seconds": 3600
-}
-```
-
----
-
-### 3.2 Convert HWP to HTML
-
-```
-POST /api/convert
-```
-
-**Request:**
-
-```
-Content-Type: multipart/form-data
-
-file: (binary) HWP file
-format: "html" | "markdown" (default: "html")
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "content": "<html>...",
-    "metadata": {
-      "title": "문서 제목",
-      "author": "작성자",
-      "created_at": "2025-01-01T00:00:00Z",
-      "version": "5.1.0.0",
-      "page_count": 10
-    },
-    "images": [
-      {
-        "id": "BIN0001",
-        "format": "png",
-        "data_base64": "iVBORw0KGgo..."
-      }
-    ]
-  }
-}
-```
-
-**Error Response (422):**
-
-```json
-{
-  "error": {
-    "code": "ENCRYPTED_DOCUMENT",
-    "message": "이 문서는 암호화되어 있어 변환할 수 없습니다."
-  }
-}
-```
-
----
-
-### 3.3 Get Document Info
-
-```
-GET /api/info
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| url | string | Yes | HWP 파일 URL (Google Drive 등) |
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "filename": "document.hwp",
-    "size_bytes": 1048576,
-    "metadata": {
-      "title": "문서 제목",
-      "author": "작성자",
-      "created_at": "2025-01-01T00:00:00Z",
-      "version": "5.1.0.0",
-      "is_encrypted": false,
-      "is_distribution": false,
-      "is_compressed": true
-    }
-  }
-}
-```
-
----
-
-### 3.4 Convert to Google Docs
-
-```
-POST /api/convert/gdocs
-```
-
-**Request:**
-
-```
-Content-Type: multipart/form-data
-Authorization: Bearer {google_oauth_token}
-
-file: (binary) HWP file
-folder_id: (optional) Google Drive folder ID
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "data": {
-    "docs_url": "https://docs.google.com/document/d/...",
-    "docs_id": "1ABC...",
-    "title": "문서 제목"
-  }
-}
-```
-
----
-
-### 3.5 OAuth Callback (Google)
-
-```
-GET /auth/google/callback
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| code | string | Authorization code |
-| state | string | CSRF token |
-
-**Response:** Redirect to frontend with token
-
----
+> Option A에서는 REST 웹 서버(`hwp-web`)를 포함하지 않습니다.
+> 관련 문서는 아래로 이동했습니다:
+> - ../../future/hwp-web/API_SPEC_REST.md
 
 ## 4. MCP Protocol (hwp-mcp)
 
@@ -242,9 +51,14 @@ GET /auth/google/callback
 
 ## 5. MCP Tools
 
-### 5.1 read_hwp_summary
+Option A의 MCP 서버(`crates/hwp-mcp`)는 **2개 도구**를 제공합니다.
 
-HWP 문서의 메타데이터를 반환합니다.
+> 입력은 **파일 경로가 아니라 base64 인코딩된 파일 바이트**입니다.  
+> (호스트가 파일 접근 권한을 어떻게 주는지에 따라 달라지기 때문에, 서버는 경로를 신뢰하지 않습니다.)
+
+### 5.1 `hwp.inspect`
+
+HWP 파일의 메타데이터/통계 정보를 반환합니다.
 
 **Input Schema:**
 
@@ -252,43 +66,43 @@ HWP 문서의 메타데이터를 반환합니다.
 {
   "type": "object",
   "properties": {
-    "path": {
-      "type": "string",
-      "description": "HWP 파일의 절대 경로"
+    "file": {
+      "type": "object",
+      "description": "HWP payload encoded as base64 (content) and logical name.",
+      "properties": {
+        "name": { "type": "string" },
+        "content": {
+          "type": "string",
+          "description": "base64 encoded bytes",
+          "contentEncoding": "base64"
+        }
+      },
+      "required": ["name", "content"]
     }
   },
-  "required": ["path"]
+  "required": ["file"]
 }
 ```
 
-**Output:**
+**Structured Output (`structured_content`) 예시:**
 
 ```json
 {
   "title": "문서 제목",
   "author": "작성자",
   "created_at": "2025-01-01",
-  "version": "5.1.0.0",
-  "page_count": 10,
   "is_encrypted": false,
-  "is_distribution": false
+  "is_distributed": false,
+  "sections": 3,
+  "paragraphs": 120,
+  "tables": 5
 }
 ```
 
-**Error:**
+### 5.2 `hwp.to_markdown`
 
-```json
-{
-  "error": "ENCRYPTED_DOCUMENT",
-  "message": "이 문서는 암호화되어 있어 읽을 수 없습니다."
-}
-```
-
----
-
-### 5.2 read_hwp_content
-
-HWP 문서의 본문을 Markdown 형식으로 반환합니다.
+HWP 내용을 **(1) semantic-markdown** 또는 **(2) plain text**로 변환합니다.  
+또한 `structured_content`로 `StructuredDocument`(문단/표 구조 포함)를 함께 반환합니다.
 
 **Input Schema:**
 
@@ -296,244 +110,77 @@ HWP 문서의 본문을 Markdown 형식으로 반환합니다.
 {
   "type": "object",
   "properties": {
-    "path": {
+    "file": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "content": { "type": "string", "contentEncoding": "base64" }
+      },
+      "required": ["name", "content"]
+    },
+    "format": {
       "type": "string",
-      "description": "HWP 파일의 절대 경로"
-    },
-    "max_length": {
-      "type": "integer",
-      "description": "최대 문자 수 (기본값: 10000)",
-      "default": 10000
-    },
-    "include_images": {
-      "type": "boolean",
-      "description": "이미지 포함 여부 (Base64)",
-      "default": false
+      "enum": ["semantic-markdown", "plain"],
+      "default": "semantic-markdown"
     }
   },
-  "required": ["path"]
+  "required": ["file"]
 }
 ```
 
 **Output:**
-
-```json
-{
-  "content": "# 문서 제목\n\n본문 내용...",
-  "truncated": false,
-  "total_length": 5000
-}
-```
-
----
-
-### 5.3 convert_to_gdocs
-
-HWP 파일을 Google Docs로 변환하고 편집 링크를 반환합니다.
-
-**Input Schema:**
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "path": {
-      "type": "string",
-      "description": "HWP 파일의 절대 경로"
-    },
-    "title": {
-      "type": "string",
-      "description": "Google Docs 문서 제목 (선택)"
-    }
-  },
-  "required": ["path"]
-}
-```
-
-**Output:**
-
-```json
-{
-  "docs_url": "https://docs.google.com/document/d/...",
-  "docs_id": "1ABC...",
-  "title": "변환된 문서"
-}
-```
-
-**Note:** Google OAuth 인증이 필요합니다. 환경 변수 또는 설정 파일에서 토큰을 읽습니다.
-
----
+- `content`: 변환된 텍스트(semantic markdown 또는 plain text)
+- `structured_content`: `StructuredDocument` (스키마는 내부적으로 진화 가능)
 
 ## 6. CLI Interface (hwp-cli)
 
 ### 6.1 Commands
 
-```bash
-# 문서 정보 출력
-hwp-cli info <file.hwp>
-  --json          # JSON 형식 출력
+`crates/hwp-cli`는 현재 **2개 서브커맨드**를 제공합니다.
 
-# 텍스트 변환
-hwp-cli convert <file.hwp> -o <output>
-  --format html|markdown|text
-  --include-images
-  --no-styles
+#### `hwp extract`
 
-# 이미지 추출
-hwp-cli extract-images <file.hwp> -d <directory>
-  --format png|original
-
-# 버전 정보
-hwp-cli --version
-```
-
-### 6.2 Exit Codes
-
-| Code | Description |
-|------|-------------|
-| 0 | Success |
-| 1 | General error |
-| 2 | Invalid arguments |
-| 10 | File not found |
-| 11 | Invalid HWP file |
-| 12 | Encrypted document |
-| 13 | Distribution document |
-| 14 | Unsupported version |
-| 20 | Parse error |
-
-### 6.3 Output Examples
-
-**Info Command:**
+HWP에서 텍스트를 추출합니다.
 
 ```bash
-$ hwp-cli info document.hwp
-
-╔════════════════════════════════════════╗
-║  HWP Document Info                     ║
-╠════════════════════════════════════════╣
-║  Title:      문서 제목                 ║
-║  Author:     작성자                    ║
-║  Version:    5.1.0.0                   ║
-║  Created:    2025-01-01                ║
-║  Encrypted:  No                        ║
-║  Compressed: Yes                       ║
-║  Pages:      10                        ║
-╚════════════════════════════════════════╝
+hwp extract <FILE> [-o <OUTPUT>] [--verbose]
 ```
 
-**Convert Command:**
+- `<FILE>`: 입력 `.hwp`
+- `-o, --output`: 결과를 파일로 저장 (미지정 시 stdout)
+
+#### `hwp info`
+
+HWP의 FileHeader 플래그 정보를 출력합니다.
 
 ```bash
-$ hwp-cli convert document.hwp -o output.html --format html
-
-✓ Parsed document.hwp (5.1.0.0)
-✓ Extracted 3 images
-✓ Converted to HTML
-✓ Saved to output.html (125 KB)
+hwp info <FILE> [--verbose]
 ```
 
----
+### 6.2 Output Examples
+
+```bash
+hwp info sample.hwp
+```
+
+```text
+HWP File Information:
+  Version: 5.1.0.0
+  Encrypted: false
+  Compressed: true
+  Distributed: false
+  Has Script: false
+  Has DRM: false
+  Has History: false
+  Has Signature: false
+```
 
 ## 7. Rate Limits
 
-### 7.1 Web API
+Option A 범위(`hwp-cli`, `hwp-mcp`, `hwp-wasm`)에는 **내장 rate limit 정책이 없습니다.**
+- `hwp-cli`: 로컬 실행 도구 → rate limit 개념 없음
+- `hwp-mcp`: 호스트 애플리케이션(IDE/Agent/서버)에서 호출 빈도를 제어
+- `hwp-wasm`: 브라우저/호스트에서 호출 빈도를 제어
 
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| /api/convert | 10 req | 1 min |
-| /api/info | 30 req | 1 min |
-| /api/convert/gdocs | 5 req | 1 min |
-
-### 7.2 Rate Limit Headers
-
-```
-X-RateLimit-Limit: 10
-X-RateLimit-Remaining: 7
-X-RateLimit-Reset: 1704067200
-```
-
----
-
-## 8. WebSocket Events (Future)
-
-Reserved for real-time conversion progress:
-
-```json
-// Progress event
-{
-  "event": "progress",
-  "data": {
-    "stage": "parsing",
-    "percent": 50
-  }
-}
-
-// Complete event
-{
-  "event": "complete",
-  "data": {
-    "docs_url": "https://..."
-  }
-}
-```
-
----
-
-## 9. SDK Examples
-
-### 9.1 curl
-
-```bash
-# Convert HWP to HTML
-curl -X POST http://localhost:3000/api/convert \
-  -F "file=@document.hwp" \
-  -F "format=html"
-
-# Get document info
-curl "http://localhost:3000/api/info?url=https://..."
-```
-
-### 9.2 JavaScript
-
-```javascript
-const formData = new FormData();
-formData.append('file', hwpFile);
-formData.append('format', 'html');
-
-const response = await fetch('/api/convert', {
-  method: 'POST',
-  body: formData
-});
-
-const { data } = await response.json();
-console.log(data.content);
-```
-
-### 9.3 Python
-
-```python
-import requests
-
-with open('document.hwp', 'rb') as f:
-    response = requests.post(
-        'http://localhost:3000/api/convert',
-        files={'file': f},
-        data={'format': 'html'}
-    )
-
-result = response.json()
-print(result['data']['content'])
-```
-
----
-
-## Appendix: OpenAPI Spec Reference
-
-Full OpenAPI 3.0 specification available at:
-- Development: `http://localhost:3000/openapi.json`
-- Documentation: `http://localhost:3000/docs`
-
----
-
-**Author:** @Architect
-**Date:** 2025-12-09
+> 웹 API의 rate limit 헤더/정책/SDK 예시는 `hwp-web` 복구 시 적용하세요:
+> - ../../future/hwp-web/API_SPEC_REST.md

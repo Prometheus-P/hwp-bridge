@@ -11,28 +11,100 @@ use std::io::Read;
 
 use super::record::{Record, RecordIterator};
 
+/// Default max decompressed bytes per section (safety)
+pub const DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION: usize = 64 * 1024 * 1024; // 64MB
+/// Default max records per section (safety)
+pub const DEFAULT_MAX_RECORDS_PER_SECTION: usize = 200_000;
+
+#[derive(Debug, Clone, Copy)]
+pub struct SectionLimits {
+    pub max_decompressed_bytes: usize,
+    pub max_records: usize,
+}
+
+impl Default for SectionLimits {
+    fn default() -> Self {
+        Self {
+            max_decompressed_bytes: DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION,
+            max_records: DEFAULT_MAX_RECORDS_PER_SECTION,
+        }
+    }
+}
+
 /// Section 압축 해제
 ///
 /// HWP의 BodyText/Section은 zlib (deflate) 압축입니다.
 /// 압축 해제 후 레코드 스트림을 반환합니다.
 pub fn decompress_section(data: &[u8]) -> Result<Vec<u8>, HwpError> {
+    decompress_section_with_limits(data, DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION)
+}
+
+/// Section 압축 해제 (상한 적용)
+pub fn decompress_section_with_limits(
+    data: &[u8],
+    max_decompressed_bytes: usize,
+) -> Result<Vec<u8>, HwpError> {
     let mut decoder = ZlibDecoder::new(data);
-    let mut decompressed = Vec::new();
+    let mut out = Vec::new();
+    let mut buf = [0u8; 8192];
+    let mut total: usize = 0;
 
-    decoder
-        .read_to_end(&mut decompressed)
-        .map_err(|e| HwpError::ParseError(format!("Decompression failed: {}", e)))?;
+    loop {
+        let n = decoder
+            .read(&mut buf)
+            .map_err(|e| HwpError::ParseError(format!("Decompression failed: {}", e)))?;
+        if n == 0 {
+            break;
+        }
+        if total + n > max_decompressed_bytes {
+            return Err(HwpError::SizeLimitExceeded(format!(
+                "Decompressed section exceeds limit: {} > {} bytes",
+                total + n,
+                max_decompressed_bytes
+            )));
+        }
+        out.extend_from_slice(&buf[..n]);
+        total += n;
+    }
 
-    Ok(decompressed)
+    Ok(out)
 }
 
 /// Section에서 레코드 파싱
+/// Section 레코드 파싱 (기본: compressed, default limits)
 pub fn parse_section_records(compressed_data: &[u8]) -> Result<Vec<Record>, HwpError> {
-    let decompressed = decompress_section(compressed_data)?;
+    parse_section_records_with_options(compressed_data, true, SectionLimits::default())
+}
+
+/// Section 레코드 파싱 (옵션)
+pub fn parse_section_records_with_options(
+    data: &[u8],
+    is_compressed: bool,
+    limits: SectionLimits,
+) -> Result<Vec<Record>, HwpError> {
+    let decompressed = if is_compressed {
+        decompress_section_with_limits(data, limits.max_decompressed_bytes)?
+    } else {
+        if data.len() > limits.max_decompressed_bytes {
+            return Err(HwpError::SizeLimitExceeded(format!(
+                "Uncompressed section exceeds limit: {} > {} bytes",
+                data.len(),
+                limits.max_decompressed_bytes
+            )));
+        }
+        data.to_vec()
+    };
 
     let mut records = Vec::new();
     for result in RecordIterator::new(&decompressed) {
         records.push(result?);
+        if records.len() > limits.max_records {
+            return Err(HwpError::SizeLimitExceeded(format!(
+                "Section record count exceeds limit: {} > {}",
+                records.len(),
+                limits.max_records
+            )));
+        }
     }
 
     Ok(records)

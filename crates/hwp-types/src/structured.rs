@@ -8,6 +8,10 @@
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
+fn default_schema_version() -> String {
+    "1".to_string()
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 최상위 문서 구조
 // ═══════════════════════════════════════════════════════════════════════════
@@ -74,6 +78,9 @@ impl StructuredDocument {
 /// 문서 메타데이터
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct StructuredMetadata {
+    /// JSON schema version (breaking changes bump major)
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

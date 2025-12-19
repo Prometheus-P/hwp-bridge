@@ -1,3 +1,5 @@
+> ⚠️ Note (Option A): `hwp-web` is excluded/disabled. Planned web materials moved to `future/`.
+
 # CONTEXT.md - HWP Bridge
 
 > **Version:** 0.1.0
@@ -37,7 +39,7 @@ hwp-bridge/
     ├── hwp-types/          # 공용 타입, 에러 정의
     ├── hwp-core/           # 핵심 파싱 로직
     ├── hwp-cli/            # CLI 인터페이스
-    ├── hwp-web/            # Web API 서버 (Axum)
+    ├── hwp-web/            # (planned) Web API 서버 (Axum) — not included
     └── hwp-mcp/            # MCP 서버
 ```
 
@@ -60,7 +62,7 @@ cli web mcp
 | `hwp-types` | 공용 타입, 에러, 데이터 구조 | serde, thiserror |
 | `hwp-core` | OLE 파싱, 스트림 추출, 문서 구조 해석 | cfb, nom, encoding_rs, flate2 |
 | `hwp-cli` | 커맨드라인 인터페이스 | tokio, tracing |
-| `hwp-web` | REST API 서버 | axum, tower-http |
+| `hwp-web` | (planned) REST API 서버 (not included) | axum, tower-http |
 | `hwp-mcp` | MCP 프로토콜 서버 | serde_json, tokio |
 
 ---
@@ -153,7 +155,7 @@ hwp-cli info input.hwp
 hwp-cli extract-images input.hwp -d ./images
 ```
 
-### 5.2 Web API (hwp-web)
+### 5.2 Web API (hwp-web) — planned (disabled)
 
 ```
 POST /api/convert
@@ -198,7 +200,7 @@ cargo test --workspace
 
 # Run specific binary
 cargo run -p hwp-cli
-cargo run -p hwp-web
+(planned) cargo run -p hwp-web  # crate not included in Option A
 cargo run -p hwp-mcp
 ```
 
@@ -226,7 +228,7 @@ cargo run -p hwp-mcp
 - [ ] Markdown 변환기: AI 분석용 경량 변환
 
 ### Phase 3: 인터페이스 구현 (Week 4-5)
-- [ ] hwp-web: Axum 기반 REST API, Google Drive 연동
+- [ ] `hwp-web` (planned, see `future/`): Axum 기반 REST API, Google Drive 연동 (disabled in Option A)
 - [ ] hwp-mcp: MCP 프로토콜, Tool 핸들러
 - [ ] hwp-cli: 완전한 CLI 인터페이스
 

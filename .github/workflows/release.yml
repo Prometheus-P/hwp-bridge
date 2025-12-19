@@ -78,7 +78,6 @@ jobs:
         run: |
           mkdir -p dist
           cp target/${{ matrix.target }}/release/hwp-cli dist/ 2>/dev/null || true
-          cp target/${{ matrix.target }}/release/hwp-web dist/ 2>/dev/null || true
           cp target/${{ matrix.target }}/release/hwp-mcp dist/ 2>/dev/null || true
           cp README.md LICENSE dist/ 2>/dev/null || true
           cd dist
@@ -90,7 +89,6 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item target/${{ matrix.target }}/release/hwp-cli.exe dist/ -ErrorAction SilentlyContinue
-          Copy-Item target/${{ matrix.target }}/release/hwp-web.exe dist/ -ErrorAction SilentlyContinue
           Copy-Item target/${{ matrix.target }}/release/hwp-mcp.exe dist/ -ErrorAction SilentlyContinue
           Copy-Item README.md dist/ -ErrorAction SilentlyContinue
           Copy-Item LICENSE dist/ -ErrorAction SilentlyContinue

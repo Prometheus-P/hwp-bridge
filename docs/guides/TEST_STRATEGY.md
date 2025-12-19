@@ -1,3 +1,4 @@
+
 # Test Strategy - HwpBridge
 
 > **Version:** 1.0.0
@@ -48,7 +49,6 @@
 | `hwp-types` | 타입 변환, Display, 비트 플래그 |
 | `hwp-core` | 파싱 로직, 에러 처리, 변환 |
 | `hwp-cli` | 인자 파싱, 출력 포맷 |
-| `hwp-web` | 핸들러 로직, 유효성 검사 |
 | `hwp-mcp` | Tool 핸들러, 프로토콜 인코딩 |
 
 **Example:**

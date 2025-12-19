@@ -1,0 +1,60 @@
+name: V1 Corpus Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  v1-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build CLI
+        run: cargo build --release -p hwp-cli
+
+      - name: Download corpus (optional)
+        if: ${{ secrets.CORPUS_ZIP_URL != '' }}
+        env:
+          CORPUS_ZIP_URL: ${{ secrets.CORPUS_ZIP_URL }}
+          CORPUS_ZIP_SHA256: ${{ secrets.CORPUS_ZIP_SHA256 }}
+        run: |
+          set -euo pipefail
+          mkdir -p corpus/local
+          curl -L "$CORPUS_ZIP_URL" -o /tmp/corpus.zip
+          if [ -n "${CORPUS_ZIP_SHA256:-}" ]; then
+            echo "${CORPUS_ZIP_SHA256}  /tmp/corpus.zip" | sha256sum -c -
+          fi
+          unzip -q /tmp/corpus.zip -d corpus/local
+
+      - name: Skip gate (no corpus configured)
+        if: ${{ secrets.CORPUS_ZIP_URL == '' }}
+        run: |
+          echo "CORPUS_ZIP_URL secret not set. Skipping V1 corpus gate."
+          echo "To enable: set GitHub Actions secrets CORPUS_ZIP_URL (+ optional CORPUS_ZIP_SHA256)."
+
+      - name: Run V1 gate
+        if: ${{ secrets.CORPUS_ZIP_URL != '' }}
+        env:
+          RUST_BACKTRACE: "1"
+        run: |
+          python3 scripts/v1_gate.py --ci \
+            --corpus-dir corpus/local \
+            --manifest corpus/manifest.json \
+            --hwp-bin target/release/hwp \
+            --min-corpus-size 100

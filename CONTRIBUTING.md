@@ -1,3 +1,5 @@
+> ⚠️ Note (Option A): `hwp-web` is excluded/disabled. Planned web materials moved to `future/`.
+
 # Contributing to HwpBridge
 
 HwpBridge 프로젝트에 기여해 주셔서 감사합니다! 이 문서는 기여 가이드라인을 설명합니다.
@@ -73,7 +75,7 @@ cargo build -p hwp-core
 cargo run -p hwp-cli -- --help
 
 # Web Server
-cargo run -p hwp-web
+(planned) cargo run -p hwp-web  # crate not included in Option A
 
 # MCP Server
 cargo run -p hwp-mcp
@@ -311,7 +313,7 @@ cargo nextest run --workspace
 | `types` | hwp-types |
 | `core` | hwp-core |
 | `cli` | hwp-cli |
-| `web` | hwp-web |
+| `web (planned)` | hwp-web (not included) |
 | `mcp` | hwp-mcp |
 
 ### Examples

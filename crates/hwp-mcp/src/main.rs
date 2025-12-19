@@ -3,17 +3,15 @@ use std::{path::Path, sync::Arc};
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use chrono::Utc;
 use hwp_core::{
     HwpOleFile,
     converter::structured::to_semantic_markdown,
-    parser::{decompress_section, record_nom::RecordIteratorNom},
+    export::parse_structured_document,
+    parser::{
+        DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION, DEFAULT_MAX_RECORDS_PER_SECTION, SectionLimits,
+    },
 };
-use hwp_types::{
-    CellBlock, FileHeader, HwpError, ParagraphType, RecordTag, SemanticParagraph, SemanticTable,
-    StructuredDocument, StructuredParagraph, StructuredSection, StructuredTable,
-    StructuredTableCell,
-};
+use hwp_types::{FileHeader, StructuredDocument};
 use mcp_sdk_rs::{
     error::{Error, ErrorCode},
     server::{Server, ServerHandler},
@@ -30,7 +28,54 @@ use tokio::{
     sync::mpsc,
 };
 
+mod http_server;
+mod tools;
+
 const STDIO_BUFFER: usize = 256;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Runtime limits
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RuntimeLimits {
+    pub max_file_bytes: usize,
+    pub max_decompressed_bytes_per_section: usize,
+    pub max_records_per_section: usize,
+}
+
+tokio::task_local! {
+    static RUNTIME_LIMITS: RuntimeLimits;
+}
+
+fn env_usize(key: &str) -> Option<usize> {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+}
+
+fn default_limits_from_env() -> RuntimeLimits {
+    RuntimeLimits {
+        max_file_bytes: env_usize("HWP_MAX_FILE_BYTES").unwrap_or(25 * 1024 * 1024),
+        max_decompressed_bytes_per_section: env_usize("HWP_MAX_DECOMPRESSED_BYTES_PER_SECTION")
+            .unwrap_or(DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION),
+        max_records_per_section: env_usize("HWP_MAX_RECORDS_PER_SECTION")
+            .unwrap_or(DEFAULT_MAX_RECORDS_PER_SECTION),
+    }
+}
+
+pub(crate) fn current_limits() -> RuntimeLimits {
+    RUNTIME_LIMITS
+        .try_with(|l| *l)
+        .unwrap_or_else(|_| default_limits_from_env())
+}
+
+pub(crate) async fn scope_limits<F, R>(limits: RuntimeLimits, fut: F) -> R
+where
+    F: std::future::Future<Output = R>,
+{
+    RUNTIME_LIMITS.scope(limits, fut).await
+}
 
 #[derive(Debug, Deserialize)]
 struct ToolCallRequest {
@@ -52,10 +97,28 @@ struct ConvertArgs {
 }
 
 #[derive(Debug, Deserialize)]
-struct ToolFile {
-    name: String,
-    /// Base64 encoded bytes
-    content: String,
+struct JsonArgs {
+    file: ToolFile,
+    /// Pretty-print JSON (can be large)
+    #[serde(default = "default_pretty")]
+    pretty: bool,
+}
+
+fn default_pretty() -> bool {
+    false
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+enum ToolFile {
+    /// Inline base64 bytes (default)
+    Inline { name: String, content: String },
+    /// Local path (only if enabled via env)
+    Path {
+        path: String,
+        #[serde(default)]
+        name: Option<String>,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -70,6 +133,14 @@ struct InspectHwpResult {
     tables: usize,
 }
 
+fn current_section_limits() -> SectionLimits {
+    let l = current_limits();
+    let mut limits = SectionLimits::default();
+    limits.max_decompressed_bytes = l.max_decompressed_bytes_per_section;
+    limits.max_records = l.max_records_per_section;
+    limits
+}
+
 fn default_format() -> String {
     "semantic-markdown".to_string()
 }
@@ -81,7 +152,12 @@ struct HwpServerHandler {
 impl HwpServerHandler {
     fn new() -> Self {
         Self {
-            tools: vec![inspect_tool(), convert_tool()],
+            tools: vec![
+                inspect_tool(),
+                convert_tool(),
+                extract_tool(),
+                to_json_tool(),
+            ],
         }
     }
 }
@@ -136,15 +212,15 @@ impl HwpServerHandler {
         match request.name.as_str() {
             "hwp.inspect" => {
                 let args: InspectArgs = serde_json::from_value(request.arguments)?;
-                let bytes = decode_file(&args.file)?;
-                let (doc, header) = build_structured_document(&bytes, &args.file.name)
-                    .map_err(|e| Error::Other(e.to_string()))?;
+                let (name, bytes) = read_tool_file_limited(&args.file)?;
+                let (doc, header) =
+                    parse_hwp(&bytes, &name).map_err(|e| Error::Other(e.to_string()))?;
                 let result = InspectHwpResult {
                     title: doc
                         .metadata
                         .title
                         .clone()
-                        .unwrap_or_else(|| derive_title(&args.file.name)),
+                        .unwrap_or_else(|| derive_title(&name)),
                     author: doc
                         .metadata
                         .author
@@ -172,9 +248,9 @@ impl HwpServerHandler {
             }
             "hwp.to_markdown" => {
                 let args: ConvertArgs = serde_json::from_value(request.arguments)?;
-                let bytes = decode_file(&args.file)?;
-                let (doc, _header) = build_structured_document(&bytes, &args.file.name)
-                    .map_err(|e| Error::Other(e.to_string()))?;
+                let (name, bytes) = read_tool_file_limited(&args.file)?;
+                let (doc, _header) =
+                    parse_hwp(&bytes, &name).map_err(|e| Error::Other(e.to_string()))?;
                 let markdown = match args.format.to_lowercase().as_str() {
                     "semantic-markdown" => to_semantic_markdown(&doc),
                     "plain" | "plain-text" | "text" => doc.extract_text(),
@@ -187,6 +263,30 @@ impl HwpServerHandler {
                 };
                 Ok(tool_response(markdown, Some(serde_json::to_value(doc)?)))
             }
+
+            "hwp.extract" => {
+                let args: InspectArgs = serde_json::from_value(request.arguments)?;
+                let (name, bytes) = read_tool_file_limited(&args.file)?;
+                let (doc, _header) =
+                    parse_hwp(&bytes, &name).map_err(|e| Error::Other(e.to_string()))?;
+                Ok(tool_response(
+                    doc.extract_text(),
+                    Some(serde_json::to_value(doc)?),
+                ))
+            }
+            "hwp.to_json" => {
+                let args: JsonArgs = serde_json::from_value(request.arguments)?;
+                let (name, bytes) = read_tool_file_limited(&args.file)?;
+                let (doc, _header) =
+                    parse_hwp(&bytes, &name).map_err(|e| Error::Other(e.to_string()))?;
+                let json_text = if args.pretty {
+                    serde_json::to_string_pretty(&doc).unwrap_or_else(|_| "{}".to_string())
+                } else {
+                    serde_json::to_string(&doc).unwrap_or_else(|_| "{}".to_string())
+                };
+                Ok(tool_response(json_text, Some(serde_json::to_value(doc)?)))
+            }
+
             other => Err(Error::protocol(
                 ErrorCode::MethodNotFound,
                 format!("unknown tool: {other}"),
@@ -205,14 +305,14 @@ fn inspect_tool() -> Tool {
                     "type": "object",
                     "description": "HWP payload encoded as base64 (content) and logical name.",
                     "properties": {
-                        "name": {"type": "string"},
-                        "content": {
-                            "type": "string",
-                            "description": "base64 encoded bytes",
-                            "contentEncoding": "base64"
-                        }
+                        "name": {"type": "string", "description": "Logical filename"},
+                        "content": {"type": "string", "description": "base64 encoded bytes", "contentEncoding": "base64"},
+                        "path": {"type": "string", "description": "Local file path (only if HWP_ALLOW_PATH_INPUT=1)"}
                     },
-                    "required": ["name", "content"]
+                    "oneOf": [
+                      {"required": ["name", "content"]},
+                      {"required": ["path"]}
+                    ]
                 }
             })),
             required: Some(vec!["file".to_string()]),
@@ -238,12 +338,13 @@ fn convert_tool() -> Tool {
                     "type": "object",
                     "properties": {
                         "name": {"type": "string"},
-                        "content": {
-                            "type": "string",
-                            "contentEncoding": "base64"
-                        }
+                        "content": {"type": "string", "contentEncoding": "base64"},
+                        "path": {"type": "string"}
                     },
-                    "required": ["name", "content"]
+                    "oneOf": [
+                      {"required": ["name", "content"]},
+                      {"required": ["path"]}
+                    ]
                 },
                 "format": {
                     "type": "string",
@@ -271,10 +372,166 @@ fn tool_response(summary: String, structured: Option<Value>) -> Value {
     serde_json::to_value(result).expect("tool result serializable")
 }
 
-fn decode_file(file: &ToolFile) -> Result<Vec<u8>, Error> {
-    STANDARD
-        .decode(&file.content)
-        .map_err(|e| Error::protocol(ErrorCode::InvalidParams, e.to_string()))
+fn extract_tool() -> Tool {
+    Tool {
+        name: "hwp.extract".to_string(),
+        description: "Extract plain text from a HWP file (fast path).".to_string(),
+        input_schema: Some(ToolSchema {
+            properties: Some(json!({
+                "file": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "content": {"type": "string", "contentEncoding": "base64"},
+                        "path": {"type": "string"}
+                    },
+                    "oneOf": [
+                      {"required": ["name", "content"]},
+                      {"required": ["path"]}
+                    ]
+                }
+            })),
+            required: Some(vec!["file".to_string()]),
+        }),
+        annotations: Some(ToolAnnotations {
+            title: Some("Extract HWP Text".to_string()),
+            read_only_hint: Some(false),
+            destructive_hint: Some(false),
+            idempotent_hint: Some(true),
+            open_world_hint: None,
+        }),
+    }
+}
+
+fn to_json_tool() -> Tool {
+    Tool {
+        name: "hwp.to_json".to_string(),
+        description: "Convert a HWP file into structured JSON (text output + structured payload)."
+            .to_string(),
+        input_schema: Some(ToolSchema {
+            properties: Some(json!({
+                "file": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "content": {"type": "string", "contentEncoding": "base64"},
+                        "path": {"type": "string"}
+                    },
+                    "oneOf": [
+                      {"required": ["name", "content"]},
+                      {"required": ["path"]}
+                    ]
+                },
+                "pretty": {
+                    "type": "boolean",
+                    "default": false
+                }
+            })),
+            required: Some(vec!["file".to_string()]),
+        }),
+        annotations: Some(ToolAnnotations {
+            title: Some("Convert HWP to JSON".to_string()),
+            read_only_hint: Some(false),
+            destructive_hint: Some(false),
+            idempotent_hint: Some(true),
+            open_world_hint: None,
+        }),
+    }
+}
+
+fn allow_path_input() -> bool {
+    std::env::var("HWP_ALLOW_PATH_INPUT")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+fn path_basedir() -> Option<std::path::PathBuf> {
+    std::env::var("HWP_PATH_BASEDIR")
+        .ok()
+        .map(std::path::PathBuf::from)
+}
+
+fn read_tool_file(file: &ToolFile) -> Result<(String, Vec<u8>), Error> {
+    match file {
+        ToolFile::Inline { name, content } => {
+            let bytes = STANDARD
+                .decode(content)
+                .map_err(|e| Error::protocol(ErrorCode::InvalidParams, e.to_string()))?;
+            Ok((name.clone(), bytes))
+        }
+        ToolFile::Path { path, name } => {
+            if !allow_path_input() {
+                return Err(Error::protocol(
+                    ErrorCode::InvalidParams,
+                    "path input is disabled (set HWP_ALLOW_PATH_INPUT=1)".to_string(),
+                ));
+            }
+            let p = std::path::PathBuf::from(path);
+            let canon = std::fs::canonicalize(&p).map_err(|e| {
+                Error::protocol(ErrorCode::InvalidParams, format!("invalid path: {e}"))
+            })?;
+
+            if let Some(base) = path_basedir() {
+                let base = std::fs::canonicalize(base).map_err(|e| {
+                    Error::protocol(ErrorCode::InvalidParams, format!("invalid basedir: {e}"))
+                })?;
+                if !canon.starts_with(&base) {
+                    return Err(Error::protocol(
+                        ErrorCode::InvalidParams,
+                        "path is outside of HWP_PATH_BASEDIR".to_string(),
+                    ));
+                }
+            }
+
+            let bytes = std::fs::read(&canon).map_err(|e| {
+                Error::protocol(ErrorCode::InvalidParams, format!("read failed: {e}"))
+            })?;
+            let logical_name = name
+                .clone()
+                .or_else(|| {
+                    canon
+                        .file_name()
+                        .and_then(|v| v.to_str())
+                        .map(|s| s.to_string())
+                })
+                .unwrap_or_else(|| "input.hwp".to_string());
+            Ok((logical_name, bytes))
+        }
+    }
+}
+
+fn unsupported_hwpx_error() -> String {
+    "UNSUPPORTED_FORMAT: HWPX (.hwpx) is not supported yet. Supported: HWP v5 (.hwp, OLE/CFB)."
+        .to_string()
+}
+
+fn is_hwpx_name(name: &str) -> bool {
+    name.to_ascii_lowercase().ends_with(".hwpx")
+}
+
+/// HWPX files are ZIP packages; they typically start with PK\x03\x04.
+fn is_hwpx_magic(bytes: &[u8]) -> bool {
+    bytes.len() >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4B && bytes[2] == 0x03 && bytes[3] == 0x04
+}
+
+fn read_tool_file_limited(file: &ToolFile) -> Result<(String, Vec<u8>), Error> {
+    let (name, bytes) = read_tool_file(file)?;
+    // Explicitly block HWPX early with a consistent error.
+    if is_hwpx_name(&name) || is_hwpx_magic(&bytes) {
+        return Err(Error::protocol(
+            ErrorCode::InvalidParams,
+            unsupported_hwpx_error(),
+        ));
+    }
+    let max = current_limits().max_file_bytes;
+    if bytes.len() > max {
+        return Err(Error::protocol(
+            ErrorCode::InvalidParams,
+            format!("file too large: {} bytes (max: {} bytes)", bytes.len(), max),
+        ));
+    }
+    Ok((name, bytes))
 }
 
 fn derive_title(name: &str) -> String {
@@ -286,144 +543,40 @@ fn derive_title(name: &str) -> String {
 }
 
 fn default_created_at() -> String {
-    Utc::now().to_rfc3339()
+    "unknown".to_string()
 }
 
-fn build_structured_document(
-    data: &[u8],
-    file_name: &str,
-) -> Result<(StructuredDocument, FileHeader)> {
-    let cursor = std::io::Cursor::new(data);
-    let mut ole = HwpOleFile::open(cursor).context("failed to open OLE container")?;
-    let header = ole.header().clone();
+fn parse_hwp(data: &[u8], file_name: &str) -> Result<(StructuredDocument, FileHeader)> {
+    let header = {
+        let cursor = std::io::Cursor::new(data);
+        let mut ole = HwpOleFile::open(cursor).context("failed to open OLE container")?;
+        ole.header().clone()
+    };
 
-    let mut doc = StructuredDocument::new();
-    doc.metadata.title = Some(derive_title(file_name));
-    doc.metadata.author = Some("Unknown Author".into());
-    doc.metadata.created_at = Some(default_created_at());
-    doc.metadata.is_encrypted = header.properties.is_encrypted();
-    doc.metadata.is_distribution = header.properties.is_distribution();
-
-    let mut section_idx = 0;
-    loop {
-        match ole.read_section(section_idx) {
-            Ok(compressed) => {
-                let decompressed =
-                    decompress_section(&compressed).context("failed to decompress section")?;
-                let mut structured_section = StructuredSection::new(section_idx);
-
-                for record in RecordIteratorNom::new(&decompressed) {
-                    let record = record.map_err(|e| anyhow!(e.to_string()))?;
-                    match record.tag() {
-                        RecordTag::ParaText => {
-                            let semantic = SemanticParagraph::try_from(&record)
-                                .map_err(|e| anyhow!(e.to_string()))?;
-                            if let Some(paragraph) = semantic_paragraph_to_structured(semantic) {
-                                structured_section.add_paragraph(paragraph);
-                            }
-                        }
-                        RecordTag::Table => {
-                            let semantic = SemanticTable::try_from(&record)
-                                .map_err(|e| anyhow!(e.to_string()))?;
-                            let table = semantic_table_to_structured(&semantic);
-                            structured_section.add_table(table);
-                        }
-                        _ => {}
-                    }
-                }
-
-                if !structured_section.content.is_empty() {
-                    doc.add_section(structured_section);
-                }
-                section_idx += 1;
-            }
-            Err(HwpError::NotFound(_)) => break,
-            Err(err) => return Err(err.into()),
-        }
-    }
-
-    if doc.sections.is_empty() {
-        let mut fallback = StructuredSection::new(0);
-        fallback.add_paragraph(StructuredParagraph::from_text(
-            "본문을 추출하지 못했습니다.",
-        ));
-        doc.add_section(fallback);
-    }
+    let limits = current_section_limits();
+    let title = Some(derive_title(file_name));
+    let doc = parse_structured_document(std::io::Cursor::new(data), title, limits)
+        .map_err(|e| anyhow!(e.to_string()))?;
 
     Ok((doc, header))
-}
-
-fn semantic_paragraph_to_structured(
-    semantic: SemanticParagraph<'_>,
-) -> Option<StructuredParagraph> {
-    let text = semantic.text.to_string();
-    let trimmed = text.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-
-    let mut paragraph = StructuredParagraph::from_text(trimmed.to_string());
-    if let Some(header) = semantic.header {
-        if (1..=6).contains(&header.style_id) {
-            paragraph.paragraph_type = ParagraphType::Heading {
-                level: header.style_id.min(6),
-            };
-        }
-    }
-
-    Some(paragraph)
-}
-
-fn semantic_table_to_structured(table: &SemanticTable<'_>) -> StructuredTable {
-    let mut structured = StructuredTable::new(table.rows as usize, table.cols as usize);
-    if table.rows > 0 {
-        structured.header_rows = 1;
-    }
-
-    let mut rows: Vec<Vec<StructuredTableCell>> = vec![Vec::new(); table.rows as usize];
-    for cell in &table.cells {
-        if cell.address.row >= rows.len() {
-            continue;
-        }
-
-        let mut structured_cell = StructuredTableCell::from_text("");
-        structured_cell.blocks.clear();
-        structured_cell = structured_cell.with_position(cell.address.row, cell.address.col);
-        structured_cell.col_span = cell.col_span as usize;
-        structured_cell.row_span = cell.row_span as usize;
-        structured_cell.is_header = cell.address.row == 0;
-
-        for paragraph in &cell.paragraphs {
-            let text = paragraph.text.to_string();
-            if text.trim().is_empty() {
-                continue;
-            }
-            structured_cell.push_block(CellBlock::Paragraph(StructuredParagraph::from_text(text)));
-        }
-
-        if structured_cell.blocks.is_empty() {
-            structured_cell.push_block(CellBlock::RawText {
-                text: format!("cell({},{})", cell.address.row + 1, cell.address.col + 1),
-            });
-        }
-
-        rows[cell.address.row].push(structured_cell);
-    }
-
-    for row in rows {
-        if row.is_empty() {
-            continue;
-        }
-        structured.add_row(row);
-    }
-
-    structured
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt::try_init().ok();
 
+    let transport = std::env::var("HWP_MCP_TRANSPORT").unwrap_or_else(|_| "stdio".to_string());
+    let handler = Arc::new(HwpServerHandler::new());
+
+    match transport.as_str() {
+        "http" => http_server::serve()
+            .await
+            .map_err(|e| Error::protocol(ErrorCode::InternalError, e.to_string())),
+        _ => run_stdio(handler).await,
+    }
+}
+
+async fn run_stdio(handler: Arc<HwpServerHandler>) -> Result<(), Error> {
     let (incoming_tx, incoming_rx) = mpsc::channel::<String>(STDIO_BUFFER);
     let (outgoing_tx, mut outgoing_rx) = mpsc::channel::<String>(STDIO_BUFFER);
 
@@ -467,7 +620,6 @@ async fn main() -> Result<(), Error> {
     });
 
     let transport = Arc::new(StdioTransport::new(incoming_rx, outgoing_tx));
-    let handler = Arc::new(HwpServerHandler::new());
     let server = Server::new(transport, handler);
     server.start().await
 }

@@ -1,3 +1,6 @@
+> ⚠️ Note (Option A): `hwp-web` is intentionally excluded/disabled in this repo snapshot.
+> This document may still mention `hwp-web` as a *planned* component.
+
 # PRD: HwpBridge - HWP to Google Docs Converter
 
 > **Version:** 1.0.0
@@ -134,15 +137,11 @@ Acceptance Criteria:
 | FR-008 | HWPTAG_TABLE 표 구조 파싱 | P2 |
 | FR-009 | BinData 이미지 추출 | P2 |
 
-### 5.2 웹 서비스 (hwp-web)
+### 5.2 웹 서비스 (hwp-web) — planned (disabled)
 
-| ID | Requirement | Priority |
-|----|-------------|----------|
-| FR-010 | 파일 업로드 엔드포인트 (multipart/form-data) | P0 |
-| FR-011 | Google OAuth 2.0 인증 | P1 |
-| FR-012 | Google Drive API 연동 | P1 |
-| FR-013 | CORS 설정 (프론트엔드 연동) | P0 |
-| FR-014 | Rate Limiting | P2 |
+> Option A에서는 `hwp-web`을 포함하지 않습니다.
+> `hwp-web` 요구사항은 아래 문서로 이동했습니다:
+> - ../../future/hwp-web/PRD_WEB.md
 
 ### 5.3 MCP 서버 (hwp-mcp)
 

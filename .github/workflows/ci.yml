@@ -100,7 +100,6 @@ jobs:
           name: binaries-${{ matrix.os }}
           path: |
             target/release/hwp-cli*
-            target/release/hwp-web*
             target/release/hwp-mcp*
           if-no-files-found: ignore
 

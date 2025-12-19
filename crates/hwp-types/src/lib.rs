@@ -67,6 +67,9 @@ pub enum HwpError {
     #[error("Not Found: {0}")]
     NotFound(String),
 
+    #[error("Size Limit Exceeded: {0}")]
+    SizeLimitExceeded(String),
+
     #[error("Google Drive API Error: {0}")]
     GoogleDriveError(String),
 }

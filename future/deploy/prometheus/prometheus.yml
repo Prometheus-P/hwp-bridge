@@ -24,13 +24,12 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # HWP Web Server
-  - job_name: 'hwp-web'
-    static_configs:
-      - targets: ['hwp-web:3000']
-    metrics_path: '/metrics'
-    scrape_interval: 10s
-
+  # HWP Web Server (planned; disabled in Option A)
+  # - job_name: 'hwp-web'
+  #   static_configs:
+  #     - targets: ['hwp-web:3000']
+  #   metrics_path: '/metrics'
+  #   scrape_interval: 10s
   # Node Exporter (if deployed)
   # - job_name: 'node'
   #   static_configs:

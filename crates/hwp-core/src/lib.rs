@@ -6,6 +6,7 @@
 //! 암호화/배포용 문서를 Fail-Fast로 걸러냅니다.
 
 pub mod converter;
+pub mod export;
 pub mod parser;
 
 pub use converter::to_structured_document;

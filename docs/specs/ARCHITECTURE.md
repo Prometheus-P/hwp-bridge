@@ -1,3 +1,5 @@
+> Planned web assets/specs are moved to `../../future/` (see `future/README.md`).
+
 # ARCHITECTURE.md - HwpBridge System Design
 
 > **Version:** 1.0.0
@@ -10,28 +12,26 @@
 ## 1. System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           HwpBridge System                              │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                 │
-│  │   hwp-cli   │    │   hwp-web   │    │   hwp-mcp   │  ← Applications │
-│  │  (Binary)   │    │  (Axum)     │    │  (Stdio)    │                 │
-│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘                 │
-│         │                  │                  │                         │
-│         └──────────────────┼──────────────────┘                         │
-│                            │                                            │
-│                    ┌───────▼───────┐                                    │
-│                    │   hwp-core    │  ← Core Library                    │
-│                    │   (Parser)    │                                    │
-│                    └───────┬───────┘                                    │
-│                            │                                            │
-│                    ┌───────▼───────┐                                    │
-│                    │  hwp-types    │  ← Shared Types                    │
-│                    │  (Models)     │                                    │
-│                    └───────────────┘                                    │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                           HwpBridge System (Option A)                    │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                  │
+│  │   hwp-cli   │    │   hwp-wasm  │    │   hwp-mcp   │  ← Applications  │
+│  │  (Binary)   │    │  (WASM)     │    │  (Stdio)    │                  │
+│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘                  │
+│         │                  │                  │                          │
+│         └──────────────────┼──────────────────┘                          │
+│                            │                                             │
+│                    ┌───────▼───────┐                                     │
+│                    │   hwp-core    │  ← Core Library (Parser/Converter)  │
+│                    └───────┬───────┘                                     │
+│                            │                                             │
+│                    ┌───────▼───────┐                                     │
+│                    │  hwp-types    │  ← Types / Tags / Structured model  │
+│                    └───────────────┘                                     │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -43,74 +43,40 @@
 ```
 hwp-types (v0.1.0)
     │
-    │  ← HwpError, FileHeader, HwpDocument, etc.
+    │  ← HwpError, FileHeader, StructuredDocument, tags, styles, etc.
     │
 hwp-core (v0.1.0)
     │
-    │  ← parser::*, converter::*, HwpOleFile
+    │  ← OLE2 + parser + structured converter
     │
-    ├───────────────┬───────────────┐
-    │               │               │
-hwp-cli         hwp-web         hwp-mcp
-(v0.1.0)        (v0.1.0)        (v0.1.0)
+    ├───────────────┬───────────────┬───────────────┐
+    │               │               │               │
+hwp-cli          hwp-wasm         hwp-mcp
+(v0.1.0)         (v0.1.0)         (v0.1.0)
 ```
 
 ### 2.2 Module Structure
 
 ```
 hwp-bridge/
-├── Cargo.toml                    # Workspace manifest
-│
+├── Cargo.toml
+├── Dockerfile
+├── docker-compose.yml
 ├── crates/
-│   ├── hwp-types/               # ═══════════════════════════════
+│   ├── hwp-types/       # shared types / tags / structured model
 │   │   └── src/
-│   │       └── lib.rs           # HwpError, FileHeader, HwpDocument
-│   │                            # DocumentProperties, HwpVersion
-│   │                            # ConvertOptions, DocumentMetadata
-│   │
-│   ├── hwp-core/                # ═══════════════════════════════
+│   ├── hwp-core/        # parser + converter
 │   │   └── src/
-│   │       ├── lib.rs           # Public API exports
-│   │       ├── parser/
-│   │       │   ├── mod.rs
-│   │       │   ├── ole.rs       # HwpOleFile (OLE container)
-│   │       │   ├── header.rs    # FileHeader parsing
-│   │       │   ├── record.rs    # Record tag parsing (TODO)
-│   │       │   └── section.rs   # BodyText section (TODO)
-│   │       └── converter/
-│   │           ├── mod.rs
-│   │           ├── html.rs      # HTML output (TODO)
-│   │           └── markdown.rs  # Markdown output (TODO)
-│   │
-│   ├── hwp-cli/                 # ═══════════════════════════════
-│   │   └── src/
-│   │       └── main.rs          # CLI entry point
-│   │
-│   ├── hwp-web/                 # ═══════════════════════════════
-│   │   └── src/
-│   │       ├── main.rs          # Server entry point
-│   │       ├── routes/
-│   │       │   ├── mod.rs
-│   │       │   ├── upload.rs    # POST /api/convert
-│   │       │   └── health.rs    # GET /health
-│   │       └── services/
-│   │           ├── mod.rs
-│   │           └── google.rs    # Google Drive API
-│   │
-│   └── hwp-mcp/                 # ═══════════════════════════════
-│       └── src/
-│           ├── main.rs          # MCP server entry
-│           └── tools/
-│               ├── mod.rs
-│               ├── read.rs      # read_hwp_* tools
-│               └── convert.rs   # convert_to_gdocs tool
-│
-└── docs/
-    └── specs/
-        ├── PRD.md
-        ├── ARCHITECTURE.md
-        ├── API_SPEC.md
-        └── DATA_MODEL.md
+│   ├── hwp-cli/         # CLI entry
+│   │   └── src/main.rs
+│   ├── hwp-wasm/        # WASM bindings (browser/JS)
+│   │   └── src/lib.rs
+│   └── hwp-mcp/         # MCP stdio server
+│       └── src/main.rs
+├── docs/
+│   ├── specs/
+│   ├── operations/
+│   └── guides/
 ```
 
 ---
@@ -201,65 +167,9 @@ pub enum HwpTag {
 
 ---
 
-## 4. Web Service Architecture
+## 4. Web Service Architecture (planned / disabled)
 
-### 4.1 Request Flow
-
-```
-┌────────┐     ┌─────────────────────────────────────────────┐
-│ Client │     │                  hwp-web                    │
-└───┬────┘     └─────────────────────────────────────────────┘
-    │                              │
-    │  POST /api/convert           │
-    │  (multipart/form-data)       │
-    │─────────────────────────────▶│
-    │                              │
-    │                    ┌─────────▼─────────┐
-    │                    │  Upload Handler   │
-    │                    │  - File validation│
-    │                    │  - Size check     │
-    │                    └─────────┬─────────┘
-    │                              │
-    │                    ┌─────────▼─────────┐
-    │                    │    hwp-core       │
-    │                    │  - Parse HWP      │
-    │                    │  - Convert HTML   │
-    │                    └─────────┬─────────┘
-    │                              │
-    │                    ┌─────────▼─────────┐
-    │                    │  Google Service   │
-    │                    │  - OAuth check    │
-    │                    │  - Upload to Drive│
-    │                    └─────────┬─────────┘
-    │                              │
-    │  { docs_url, metadata }      │
-    │◀─────────────────────────────│
-    │                              │
-```
-
-### 4.2 Axum Router Structure
-
-```rust
-pub fn create_router() -> Router {
-    Router::new()
-        // Health check
-        .route("/health", get(health_check))
-
-        // API routes
-        .nest("/api",
-            Router::new()
-                .route("/convert", post(convert_handler))
-                .route("/info", get(info_handler))
-        )
-
-        // Middleware
-        .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive())
-        .layer(DefaultBodyLimit::max(10 * 1024 * 1024)) // 10MB
-}
-```
-
----
+> 웹 서버 아키텍처 섹션은 아래로 이동했습니다:
 
 ## 5. MCP Server Architecture
 
@@ -453,13 +363,15 @@ pub enum HwpError {
 
 ## 8. Security Considerations
 
+> Web 서비스(hwp-web) 관련 보안 항목은 `future/`로 이동했습니다:
+> - ../../future/hwp-web/ARCHITECTURE_WEB.md
+
+
 ### 8.1 Input Validation
 
 | Check | Location | Action |
 |-------|----------|--------|
 | File signature | hwp-core | Reject non-HWP |
-| File size | hwp-web | Limit 10MB |
-| Content-Type | hwp-web | Validate multipart |
 | Path traversal | hwp-mcp | Sanitize paths |
 
 ### 8.2 Resource Limits
@@ -541,3 +453,9 @@ pub enum HwpError {
 
 **Approved by:** @Architect
 **Date:** 2025-12-09
+
+
+## Distribution (Smithery)
+
+- MCP server ships with `smithery.yaml` for Smithery registry deployment.
+- See `docs/SMITHERY.md`.

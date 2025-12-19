@@ -10,18 +10,30 @@ use hwp_types::HwpError;
 
 use super::ole::HwpOleFile;
 use super::record::tags;
-use super::section::{extract_text_from_para_text, parse_section_records};
+use super::section::{
+    SectionLimits, extract_text_from_para_text, parse_section_records_with_options,
+};
 
 /// HWP 문서에서 텍스트를 추출하는 구조체
 pub struct HwpTextExtractor<F: Read + Seek> {
     ole: HwpOleFile<F>,
+    limits: SectionLimits,
 }
 
 impl<F: Read + Seek> HwpTextExtractor<F> {
     /// HWP 파일을 열고 TextExtractor 생성
     pub fn open(inner: F) -> Result<Self, HwpError> {
         let ole = HwpOleFile::open(inner)?;
-        Ok(Self { ole })
+        Ok(Self {
+            ole,
+            limits: SectionLimits::default(),
+        })
+    }
+
+    /// 리소스 상한 설정
+    pub fn with_limits(mut self, limits: SectionLimits) -> Self {
+        self.limits = limits;
+        self
     }
 
     /// 모든 섹션에서 텍스트 추출
@@ -52,7 +64,9 @@ impl<F: Read + Seek> HwpTextExtractor<F> {
 
     /// 단일 섹션에서 텍스트 추출
     fn extract_section_text(&self, compressed_data: &[u8]) -> Result<String, HwpError> {
-        let records = parse_section_records(compressed_data)?;
+        let is_compressed = self.ole.header().properties.is_compressed();
+        let records =
+            parse_section_records_with_options(compressed_data, is_compressed, self.limits)?;
         let mut paragraphs = Vec::new();
 
         for record in records {

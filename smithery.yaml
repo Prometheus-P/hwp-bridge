@@ -1,0 +1,58 @@
+# Smithery configuration file: https://smithery.ai/docs/build/project-config
+# HwpBridge MCP (container, Streamable HTTP)
+
+runtime: "container"
+
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
+
+startCommand:
+  type: "http"
+  # Config is passed per-session via URL query params.
+  # Smithery commonly uses: https://.../mcp?config=<base64(JSON)>
+  # This server also accepts plain query params like: ?limits.maxFileBytes=10485760
+  configSchema:
+    type: "object"
+    properties:
+      limits:
+        type: "object"
+        description: "Resource safety limits for HWP parsing (best-effort)."
+        properties:
+          maxFileBytes:
+            type: "integer"
+            minimum: 262144
+            maximum: 268435456
+            default: 10485760
+            description: "Max bytes accepted for a single uploaded file (default 10MB)."
+          maxRecords:
+            type: "integer"
+            minimum: 1000
+            maximum: 5000000
+            default: 100000
+            description: "Max HWP records processed (safety fuse)."
+          maxSections:
+            type: "integer"
+            minimum: 1000
+            maximum: 5000000
+            default: 50000
+            description: "Max section nodes processed (safety fuse)."
+      security:
+        type: "object"
+        description: "Optional Origin allowlist for browser clients."
+        properties:
+          allowedOrigins:
+            type: "array"
+            items:
+              type: "string"
+            default: ["*"]
+            description: "Allowed Origin values. Use ['*'] to allow all."
+    additionalProperties: true
+
+exampleConfig:
+  limits:
+    maxFileBytes: 10485760
+    maxRecords: 100000
+    maxSections: 50000
+  security:
+    allowedOrigins: ["*"]

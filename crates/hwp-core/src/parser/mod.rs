@@ -20,4 +20,8 @@ pub use record_nom::{
     FilteredRecordIterator, RecordHeaderNom, RecordIteratorNom, RecordNom, extract_records_by_tag,
     find_first_record, parse_record, parse_record_header, parse_records,
 };
-pub use section::{decompress_section, extract_text_from_para_text, parse_section_records};
+pub use section::{
+    DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION, DEFAULT_MAX_RECORDS_PER_SECTION, SectionLimits,
+    decompress_section, decompress_section_with_limits, extract_text_from_para_text,
+    parse_section_records, parse_section_records_with_options,
+};

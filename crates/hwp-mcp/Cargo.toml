@@ -2,7 +2,13 @@
 name = "hwp-mcp"
 version = "0.1.0"
 edition = "2024"
+license = "Apache-2.0"
 description = "MCP server for HWP document processing"
+
+[features]
+# Dev UI is off by default. Enable only for local testing.
+# Example: cargo run -p hwp-mcp --features dev-ui
+dev-ui = []
 
 [[bin]]
 name = "hwp-mcp"
@@ -21,3 +27,7 @@ tokio = { version = "1.48", features = ["full", "io-std"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 chrono = { version = "0.4", features = ["serde"] }
+axum = "0.7"
+tower-http = { version = "0.6", features = ["cors"] }
+tokio-stream = "0.1"
+uuid = { version = "1", features = ["v4"] }

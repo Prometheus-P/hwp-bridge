@@ -1,3 +1,5 @@
+> ⚠️ Note (Option A): `hwp-web` is excluded/disabled. Planned web materials moved to `future/`.
+
 # CLAUDE.md - HWP Bridge 프로젝트 AI 작업 규칙
 
 > 이 파일은 AI 어시스턴트가 프로젝트 작업 시 반드시 따라야 할 규칙을 정의합니다.
@@ -87,7 +89,7 @@ cargo clippy --workspace -- -D warnings
 
 ### Crate 의존성 (필수 준수)
 ```
-hwp-types (base) → hwp-core (parser) → hwp-cli / hwp-web / hwp-mcp
+hwp-types (base) → hwp-core (parser) → hwp-cli / hwp-mcp / hwp-wasm (hwp-web planned)
 ```
 
 **핵심 규칙:**
@@ -174,7 +176,7 @@ hwp-bridge/
     ├── hwp-types/          # 공용 타입, 에러 정의
     ├── hwp-core/           # 핵심 파싱 로직
     ├── hwp-cli/            # CLI 인터페이스
-    ├── hwp-web/            # Web API 서버 (Axum)
+    ├── hwp-web/            # (planned) Web API 서버 (Axum) — not included
     └── hwp-mcp/            # MCP 서버
 ```
 
@@ -202,7 +204,7 @@ hwp-bridge/
 | `types` | hwp-types |
 | `core` | hwp-core |
 | `cli` | hwp-cli |
-| `web` | hwp-web |
+| `web (planned)` | hwp-web (not included) |
 | `mcp` | hwp-mcp |
 
 ---
@@ -226,7 +228,7 @@ cargo clippy --workspace
 cargo run -p hwp-cli -- --help
 
 # Web 서버 실행
-cargo run -p hwp-web
+(planned) cargo run -p hwp-web  # crate not included in Option A
 ```
 
 ---

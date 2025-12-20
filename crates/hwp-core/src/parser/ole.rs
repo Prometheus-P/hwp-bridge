@@ -5,6 +5,7 @@ use hwp_types::{FileHeader, HwpError};
 use std::io::{Read, Seek};
 
 use super::header::parse_file_header;
+use super::summary::{HwpSummaryInfo, parse_summary_info};
 
 /// HWP OLE 컨테이너 래퍼
 pub struct HwpOleFile<F: Read + Seek> {
@@ -85,5 +86,23 @@ impl<F: Read + Seek> HwpOleFile<F> {
             return Err(HwpError::NotFound(format!("Section {} not found", index)));
         }
         self.read(&path)
+    }
+
+    /// HwpSummaryInformation 스트림 읽기 및 파싱
+    ///
+    /// HWP 문서의 메타데이터(제목, 저자, 생성일 등)를 반환합니다.
+    /// 스트림이 없거나 파싱 실패 시 기본값을 반환합니다.
+    pub fn read_summary_info(&mut self) -> HwpSummaryInfo {
+        // HWP uses "\x05HwpSummaryInformation" stream name
+        const SUMMARY_STREAM: &str = "\x05HwpSummaryInformation";
+
+        if !self.has_stream(SUMMARY_STREAM) {
+            return HwpSummaryInfo::default();
+        }
+
+        match self.read(SUMMARY_STREAM) {
+            Ok(data) => parse_summary_info(&data).unwrap_or_default(),
+            Err(_) => HwpSummaryInfo::default(),
+        }
     }
 }

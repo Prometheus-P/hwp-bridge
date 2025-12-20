@@ -20,8 +20,8 @@ use hwp_types::{
 
 /// Parse an HWP file into a StructuredDocument.
 ///
-/// - Deterministic metadata: no timestamps.
-/// - Title is provided by caller (recommended: file stem).
+/// - Extracts metadata from HwpSummaryInformation stream if available.
+/// - Falls back to caller-provided title if not found in document.
 pub fn parse_structured_document<F: Read + Seek>(
     reader: F,
     title: Option<String>,
@@ -30,10 +30,14 @@ pub fn parse_structured_document<F: Read + Seek>(
     let mut ole = HwpOleFile::open(reader)?;
     let header = ole.header().clone();
 
+    // Read document summary information (title, author, etc.)
+    let summary = ole.read_summary_info();
+
     let mut doc = StructuredDocument::new();
-    doc.metadata.title = title;
-    doc.metadata.author = None;
-    doc.metadata.created_at = None; // deterministic
+    // Prefer title from document metadata, fall back to caller-provided title
+    doc.metadata.title = summary.title.or(title);
+    doc.metadata.author = summary.author;
+    doc.metadata.created_at = summary.created_at;
     doc.metadata.is_encrypted = header.properties.is_encrypted();
     doc.metadata.is_distribution = header.properties.is_distribution();
 

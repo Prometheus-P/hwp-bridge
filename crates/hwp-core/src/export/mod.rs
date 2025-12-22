@@ -123,12 +123,12 @@ fn semantic_paragraph_to_structured(
     }
 
     let mut paragraph = StructuredParagraph::from_text(trimmed.to_string());
-    if let Some(header) = semantic.header {
-        if (1..=6).contains(&header.style_id) {
-            paragraph.paragraph_type = ParagraphType::Heading {
-                level: header.style_id.min(6),
-            };
-        }
+    if let Some(header) = semantic.header
+        && (1..=6).contains(&header.style_id)
+    {
+        paragraph.paragraph_type = ParagraphType::Heading {
+            level: header.style_id.min(6),
+        };
     }
 
     Some(paragraph)
@@ -146,8 +146,8 @@ fn semantic_table_to_structured(semantic: &SemanticTable<'_>) -> StructuredTable
         vec![vec![StructuredTableCell::default(); col_count.max(1)]; row_count.max(1)];
 
     for cell in &semantic.cells {
-        let r = (cell.address.row as usize).min(row_count.saturating_sub(1));
-        let c = (cell.address.col as usize).min(col_count.saturating_sub(1));
+        let r = cell.address.row.min(row_count.saturating_sub(1));
+        let c = cell.address.col.min(col_count.saturating_sub(1));
 
         let mut structured_cell = StructuredTableCell::default()
             .with_position(r, c)

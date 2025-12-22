@@ -219,10 +219,10 @@ fn json_pointer_for(key_path: &str) -> String {
 
 #[allow(dead_code)]
 fn get_str_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<String> {
-    if let Some(v) = query.get(key) {
-        if !v.trim().is_empty() {
-            return Some(v.trim().to_string());
-        }
+    if let Some(v) = query.get(key)
+        && !v.trim().is_empty()
+    {
+        return Some(v.trim().to_string());
     }
     let cfg = cfg.as_ref()?;
     let ptr = json_pointer_for(key);
@@ -231,10 +231,10 @@ fn get_str_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -
 }
 
 fn get_usize_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<usize> {
-    if let Some(v) = query.get(key) {
-        if let Ok(n) = v.trim().parse::<usize>() {
-            return Some(n);
-        }
+    if let Some(v) = query.get(key)
+        && let Ok(n) = v.trim().parse::<usize>()
+    {
+        return Some(n);
     }
     let cfg = cfg.as_ref()?;
     let ptr = json_pointer_for(key);
@@ -338,6 +338,7 @@ fn parse_allowed_origins(query: &QueryMap) -> AllowedOrigins {
     AllowedOrigins::from_env()
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_origin(headers: &HeaderMap, allowed: &AllowedOrigins) -> Result<(), Response> {
     let Some(origin) = headers.get(ORIGIN) else {
         // Many non-browser clients won't send Origin.

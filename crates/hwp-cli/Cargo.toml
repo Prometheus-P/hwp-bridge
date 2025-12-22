@@ -2,7 +2,7 @@
 name = "hwp-cli"
 version = "0.1.0"
 edition = "2024"
-license = "Apache-2.0"
+license = "LicenseRef-Proprietary"
 
 [dependencies]
 anyhow = "1.0.100"

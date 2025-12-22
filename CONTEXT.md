@@ -3,8 +3,8 @@
 # CONTEXT.md - HWP Bridge
 
 > **Version:** 0.1.0
-> **Last Updated:** 2025-12-09
-> **Status:** Initial Development
+> **Last Updated:** 2025-12-22
+> **Status:** Active Development
 
 ---
 
@@ -35,12 +35,16 @@ HWP Bridge는 한글(HWP) 문서를 파싱하고 변환하는 Rust 기반 도구
 ```
 hwp-bridge/
 ├── Cargo.toml              # Workspace manifest
+├── docs/                   # Documentation
+├── scripts/                # Utility scripts
+├── corpus/                 # Test corpus (local files gitignored)
 └── crates/
     ├── hwp-types/          # 공용 타입, 에러 정의
     ├── hwp-core/           # 핵심 파싱 로직
     ├── hwp-cli/            # CLI 인터페이스
-    ├── hwp-web/            # (planned) Web API 서버 (Axum) — not included
-    └── hwp-mcp/            # MCP 서버
+    ├── hwp-mcp/            # MCP 서버
+    ├── hwp-wasm/           # WASM bindings
+    └── hwp-web/            # (planned) Web API 서버 — see future/
 ```
 
 ### 2.2 Crate Dependency Graph
@@ -62,8 +66,9 @@ cli web mcp
 | `hwp-types` | 공용 타입, 에러, 데이터 구조 | serde, thiserror |
 | `hwp-core` | OLE 파싱, 스트림 추출, 문서 구조 해석 | cfb, nom, encoding_rs, flate2 |
 | `hwp-cli` | 커맨드라인 인터페이스 | tokio, tracing |
-| `hwp-web` | (planned) REST API 서버 (not included) | axum, tower-http |
-| `hwp-mcp` | MCP 프로토콜 서버 | serde_json, tokio |
+| `hwp-mcp` | MCP 프로토콜 서버 | serde_json, tokio, axum |
+| `hwp-wasm` | WASM 바인딩 | wasm-bindgen |
+| `hwp-web` | (planned) REST API 서버 — see future/ | axum, tower-http |
 
 ---
 
@@ -276,5 +281,5 @@ cargo run -p hwp-mcp
 
 ---
 
-**Last Modified:** 2025-12-09
-**Maintainer:** AI Software Factory
+**Last Modified:** 2025-12-22
+**Maintainer:** HwpBridge (parkdavid31@gmail.com)

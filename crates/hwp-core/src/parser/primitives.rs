@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn test_should_parse_i8_array_7() {
         // Arrange
-        let data = [0i8, -1, 2, -3, 4, -5, 6].map(|i| i as u8);
+        let data: [u8; 7] = [0, 255, 2, 253, 4, 251, 6]; // i8 values as u8
 
         // Act
         let (remaining, arr) = parse_i8_array_7(&data).unwrap();

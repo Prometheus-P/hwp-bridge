@@ -8,23 +8,22 @@ use hwp_core::{
     HwpTextExtractor, converter::to_semantic_markdown, export::parse_structured_document,
     parser::SectionLimits,
 };
-use serde_json;
 use std::fs::File;
 use std::io::{BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::info;
 use tracing_subscriber::fmt;
 
 use serde_json::json;
 
-fn is_hwpx_path(p: &PathBuf) -> bool {
+fn is_hwpx_path(p: &Path) -> bool {
     p.extension()
         .and_then(|s| s.to_str())
         .map(|s| s.eq_ignore_ascii_case("hwpx"))
         .unwrap_or(false)
 }
 
-fn exit_unsupported_hwpx(p: &PathBuf) -> ! {
+fn exit_unsupported_hwpx(p: &Path) -> ! {
     let msg =
         "UNSUPPORTED_FORMAT: HWPX (.hwpx) is not supported yet. Supported: HWP v5 (.hwp, OLE/CFB).";
     eprintln!(
@@ -41,12 +40,11 @@ fn exit_unsupported_hwpx(p: &PathBuf) -> ! {
                 }
             }
         })
-        .to_string()
     );
     std::process::exit(2);
 }
 
-fn ensure_supported_input_or_exit(p: &PathBuf) {
+fn ensure_supported_input_or_exit(p: &Path) {
     if is_hwpx_path(p) {
         exit_unsupported_hwpx(p);
     }
@@ -214,7 +212,7 @@ fn main() -> Result<()> {
 
 /// Extract text from HWP file
 fn extract_text(
-    input: &PathBuf,
+    input: &Path,
     output: Option<&std::path::Path>,
     max_decompressed_bytes_per_section: usize,
     max_records_per_section: usize,
@@ -255,7 +253,7 @@ fn extract_text(
 
 /// Show information about HWP file
 fn show_info(
-    input: &PathBuf,
+    input: &Path,
     _max_decompressed_bytes_per_section: usize,
     _max_records_per_section: usize,
 ) -> Result<()> {
@@ -286,7 +284,7 @@ fn show_info(
     Ok(())
 }
 
-fn derive_title_from_path(input: &PathBuf) -> String {
+fn derive_title_from_path(input: &Path) -> String {
     input
         .file_stem()
         .and_then(|s| s.to_str())
@@ -295,7 +293,7 @@ fn derive_title_from_path(input: &PathBuf) -> String {
 }
 
 fn export_json(
-    input: &PathBuf,
+    input: &Path,
     output: Option<&std::path::Path>,
     pretty: bool,
     max_decompressed_bytes_per_section: usize,
@@ -339,7 +337,7 @@ fn export_json(
 }
 
 fn export_markdown(
-    input: &PathBuf,
+    input: &Path,
     output: Option<&std::path::Path>,
     max_decompressed_bytes_per_section: usize,
     max_records_per_section: usize,

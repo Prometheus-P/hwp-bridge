@@ -114,7 +114,9 @@ struct AppState {
 
 #[derive(Clone)]
 struct McpSession {
+    #[allow(dead_code)]
     created_at: SystemTime,
+    #[allow(dead_code)]
     log_tx: mpsc::UnboundedSender<ServerLogEvent>,
     protocol_version: String,
     // Very small replay buffer for resumable SSE (best-effort).
@@ -215,11 +217,12 @@ fn json_pointer_for(key_path: &str) -> String {
     out
 }
 
+#[allow(dead_code)]
 fn get_str_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<String> {
-    if let Some(v) = query.get(key) {
-        if !v.trim().is_empty() {
-            return Some(v.trim().to_string());
-        }
+    if let Some(v) = query.get(key)
+        && !v.trim().is_empty()
+    {
+        return Some(v.trim().to_string());
     }
     let cfg = cfg.as_ref()?;
     let ptr = json_pointer_for(key);
@@ -228,10 +231,10 @@ fn get_str_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -
 }
 
 fn get_usize_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<usize> {
-    if let Some(v) = query.get(key) {
-        if let Ok(n) = v.trim().parse::<usize>() {
-            return Some(n);
-        }
+    if let Some(v) = query.get(key)
+        && let Ok(n) = v.trim().parse::<usize>()
+    {
+        return Some(n);
     }
     let cfg = cfg.as_ref()?;
     let ptr = json_pointer_for(key);
@@ -335,6 +338,7 @@ fn parse_allowed_origins(query: &QueryMap) -> AllowedOrigins {
     AllowedOrigins::from_env()
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_origin(headers: &HeaderMap, allowed: &AllowedOrigins) -> Result<(), Response> {
     let Some(origin) = headers.get(ORIGIN) else {
         // Many non-browser clients won't send Origin.
@@ -359,10 +363,10 @@ fn validate_origin(headers: &HeaderMap, allowed: &AllowedOrigins) -> Result<(), 
 fn header_get_ci(headers: &HeaderMap, name: &str) -> Option<String> {
     // Case-insensitive lookup by iterating.
     for (k, v) in headers.iter() {
-        if k.as_str().eq_ignore_ascii_case(name) {
-            if let Ok(s) = v.to_str() {
-                return Some(s.to_string());
-            }
+        if k.as_str().eq_ignore_ascii_case(name)
+            && let Ok(s) = v.to_str()
+        {
+            return Some(s.to_string());
         }
     }
     None
@@ -382,10 +386,10 @@ fn add_mcp_headers(resp: &mut Response, protocol_version: &str, session_id: Opti
     if let Ok(v) = HeaderValue::from_str(protocol_version) {
         headers.insert("Mcp-Protocol-Version", v);
     }
-    if let Some(sid) = session_id {
-        if let Ok(v) = HeaderValue::from_str(sid) {
-            headers.insert("Mcp-Session-Id", v);
-        }
+    if let Some(sid) = session_id
+        && let Ok(v) = HeaderValue::from_str(sid)
+    {
+        headers.insert("Mcp-Session-Id", v);
     }
 }
 
@@ -444,6 +448,7 @@ async fn health() -> impl IntoResponse {
     (StatusCode::OK, Json(body))
 }
 
+#[allow(clippy::result_large_err)]
 fn require_sse_accept(headers: &HeaderMap) -> Result<(), Response> {
     let accept = headers
         .get(ACCEPT)
@@ -457,6 +462,7 @@ fn require_sse_accept(headers: &HeaderMap) -> Result<(), Response> {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn ensure_json_content_type(headers: &HeaderMap) -> Result<(), Response> {
     let content_type = headers
         .get(CONTENT_TYPE)
@@ -478,6 +484,7 @@ fn ensure_json_content_type(headers: &HeaderMap) -> Result<(), Response> {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn ensure_post_accept(headers: &HeaderMap) -> Result<(), Response> {
     let accept = headers
         .get(ACCEPT)
@@ -622,18 +629,13 @@ async fn mcp_delete(
     }
 }
 
-#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, Default, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum PostMode {
+    #[default]
     Auto,
     Json,
     Sse,
-}
-
-impl Default for PostMode {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 async fn mcp_post(
@@ -756,16 +758,16 @@ async fn mcp_post(
         }
 
         // Validate header protocol if present.
-        if let Some(h) = header_proto {
-            if h != effective_protocol {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    format!(
-                        "Mcp-Protocol-Version mismatch. Session expects {effective_protocol}, got {h}"
-                    ),
-                )
-                    .into_response();
-            }
+        if let Some(h) = header_proto
+            && h != effective_protocol
+        {
+            return (
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "Mcp-Protocol-Version mismatch. Session expects {effective_protocol}, got {h}"
+                ),
+            )
+                .into_response();
         }
     }
 
@@ -841,7 +843,7 @@ async fn mcp_post(
                     continue;
                 };
 
-                match handle_rpc_request(&state, &sid, req, limits.clone()).await {
+                match handle_rpc_request(&state, sid, req, limits.clone()).await {
                     Ok(Some(resp)) => out.push(resp),
                     Ok(None) => {}
                     Err(err_resp) => out.push(err_resp),

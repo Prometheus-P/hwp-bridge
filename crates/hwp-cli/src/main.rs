@@ -40,7 +40,6 @@ fn exit_unsupported_hwpx(p: &Path) -> ! {
                 }
             }
         })
-        .to_string()
     );
     std::process::exit(2);
 }

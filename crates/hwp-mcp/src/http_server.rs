@@ -14,9 +14,9 @@ use axum::{
     extract::{Query, State},
     http::{
         HeaderMap, HeaderValue, Method, StatusCode,
-        header::{ACCEPT, CONTENT_TYPE, HeaderName, ORIGIN},
+        header::{ACCEPT, CONTENT_TYPE, HeaderName, ORIGIN, SET_COOKIE},
     },
-    response::{IntoResponse, Redirect, Response},
+    response::{Html, IntoResponse, Redirect, Response},
     routing::get,
 };
 use base64::Engine;
@@ -978,20 +978,11 @@ async fn handle_rpc_request(
 mod dev_ui {
     use super::*;
 
-    #[derive(Clone)]
-    struct DevUiState {
-        token: String,
-    }
-
-    pub(super) fn dev_ui_router() -> Router<AppState> {
-        let token = env::var("HWP_DEV_UI_TOKEN").unwrap_or_default();
-        let dev = DevUiState { token };
-
+    pub(super) fn dev_ui_router() -> Router<()> {
         Router::new()
             .route("/__dev/ui", get(ui_index))
             .route("/__dev/login", get(ui_login_get).post(ui_login_post))
             .route("/__dev/session", get(ui_session))
-            .with_state(dev)
     }
 
     fn is_authed(headers: &HeaderMap) -> bool {
@@ -1042,10 +1033,10 @@ mod dev_ui {
     }
 
     async fn ui_login_post(
-        State(dev): State<DevUiState>,
         axum::extract::Form(form): axum::extract::Form<LoginForm>,
     ) -> Response {
-        if dev.token.is_empty() {
+        let token = env::var("HWP_DEV_UI_TOKEN").unwrap_or_default();
+        if token.is_empty() {
             return (
                 StatusCode::PRECONDITION_FAILED,
                 "HWP_DEV_UI_TOKEN is not set",
@@ -1053,7 +1044,7 @@ mod dev_ui {
                 .into_response();
         }
 
-        if form.token.trim() == dev.token {
+        if form.token.trim() == token {
             let mut resp = Redirect::to("/__dev/ui").into_response();
             resp.headers_mut().insert(
                 SET_COOKIE,

@@ -114,7 +114,9 @@ struct AppState {
 
 #[derive(Clone)]
 struct McpSession {
+    #[allow(dead_code)]
     created_at: SystemTime,
+    #[allow(dead_code)]
     log_tx: mpsc::UnboundedSender<ServerLogEvent>,
     protocol_version: String,
     // Very small replay buffer for resumable SSE (best-effort).
@@ -215,6 +217,7 @@ fn json_pointer_for(key_path: &str) -> String {
     out
 }
 
+#[allow(dead_code)]
 fn get_str_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<String> {
     if let Some(v) = query.get(key) {
         if !v.trim().is_empty() {

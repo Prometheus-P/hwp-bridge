@@ -49,14 +49,13 @@ pub fn parse_structured_document<F: Read + Seek>(
             Ok(section_bytes) => {
                 let decompressed = if is_compressed {
                     decompress_section_with_limits(&section_bytes, limits.max_decompressed_bytes)?
+                } else if section_bytes.len() > limits.max_decompressed_bytes {
+                    return Err(HwpError::SizeLimitExceeded(format!(
+                        "Uncompressed section exceeds limit: {} > {} bytes",
+                        section_bytes.len(),
+                        limits.max_decompressed_bytes
+                    )));
                 } else {
-                    if section_bytes.len() > limits.max_decompressed_bytes {
-                        return Err(HwpError::SizeLimitExceeded(format!(
-                            "Uncompressed section exceeds limit: {} > {} bytes",
-                            section_bytes.len(),
-                            limits.max_decompressed_bytes
-                        )));
-                    }
                     section_bytes
                 };
 

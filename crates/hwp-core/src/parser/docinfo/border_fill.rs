@@ -305,8 +305,8 @@ mod tests {
         data.extend_from_slice(&0u32.to_le_bytes()); // pattern_type
 
         // image info (5 bytes)
-        data.push(10i8 as u8); // brightness
-        data.push(0i8 as u8); // contrast
+        data.push(10u8); // brightness
+        data.push(0u8); // contrast
         data.push(0); // effect
         data.extend_from_slice(&5u16.to_le_bytes()); // bin_data_id
 

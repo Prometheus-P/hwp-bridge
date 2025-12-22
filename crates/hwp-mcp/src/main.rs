@@ -70,6 +70,7 @@ pub(crate) fn current_limits() -> RuntimeLimits {
         .unwrap_or_else(|_| default_limits_from_env())
 }
 
+#[allow(dead_code)]
 pub(crate) async fn scope_limits<F, R>(limits: RuntimeLimits, fut: F) -> R
 where
     F: std::future::Future<Output = R>,

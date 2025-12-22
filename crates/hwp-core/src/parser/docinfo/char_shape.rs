@@ -101,13 +101,13 @@ mod tests {
         data.extend_from_slice(&[100u8; 7]);
 
         // char_spacing: [0; 7]
-        data.extend_from_slice(&[0i8 as u8; 7]);
+        data.extend_from_slice(&[0u8; 7]);
 
         // relative_sizes: [100; 7]
         data.extend_from_slice(&[100u8; 7]);
 
         // char_offsets: [0; 7]
-        data.extend_from_slice(&[0i8 as u8; 7]);
+        data.extend_from_slice(&[0u8; 7]);
 
         // base_size: 1000 (10pt)
         data.extend_from_slice(&1000i32.to_le_bytes());
@@ -116,8 +116,8 @@ mod tests {
         data.extend_from_slice(&0x03u32.to_le_bytes());
 
         // shadow_gap: (10, 10)
-        data.push(10i8 as u8);
-        data.push(10i8 as u8);
+        data.push(10u8);
+        data.push(10u8);
 
         // text_color: 0x000000 (black)
         data.extend_from_slice(&0x000000u32.to_le_bytes());

@@ -706,6 +706,7 @@ async fn mcp_post(
         .or_else(|| header_get_ci(&headers, "MCP-Protocol-Version"));
 
     // Determine effective protocol for this request.
+    #[allow(unused_assignments)]
     let mut effective_protocol = PROTOCOL_V2025_06_18.to_string();
 
     if is_initialize {

@@ -549,7 +549,7 @@ fn default_created_at() -> String {
 fn parse_hwp(data: &[u8], file_name: &str) -> Result<(StructuredDocument, FileHeader)> {
     let header = {
         let cursor = std::io::Cursor::new(data);
-        let mut ole = HwpOleFile::open(cursor).context("failed to open OLE container")?;
+        let ole = HwpOleFile::open(cursor).context("failed to open OLE container")?;
         ole.header().clone()
     };
 

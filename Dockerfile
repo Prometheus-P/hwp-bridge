@@ -14,7 +14,7 @@ COPY . .
 # Build only the MCP server binary
 RUN cargo build --release -p hwp-mcp
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:bookworm-slim AS hwp-mcp
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

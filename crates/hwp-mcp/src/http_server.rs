@@ -625,18 +625,13 @@ async fn mcp_delete(
     }
 }
 
-#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, Default, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum PostMode {
+    #[default]
     Auto,
     Json,
     Sse,
-}
-
-impl Default for PostMode {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 async fn mcp_post(
@@ -759,16 +754,16 @@ async fn mcp_post(
         }
 
         // Validate header protocol if present.
-        if let Some(h) = header_proto {
-            if h != effective_protocol {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    format!(
-                        "Mcp-Protocol-Version mismatch. Session expects {effective_protocol}, got {h}"
-                    ),
-                )
-                    .into_response();
-            }
+        if let Some(h) = header_proto
+            && h != effective_protocol
+        {
+            return (
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "Mcp-Protocol-Version mismatch. Session expects {effective_protocol}, got {h}"
+                ),
+            )
+                .into_response();
         }
     }
 
@@ -844,7 +839,7 @@ async fn mcp_post(
                     continue;
                 };
 
-                match handle_rpc_request(&state, &sid, req, limits.clone()).await {
+                match handle_rpc_request(&state, sid, req, limits.clone()).await {
                     Ok(Some(resp)) => out.push(resp),
                     Ok(None) => {}
                     Err(err_resp) => out.push(err_resp),

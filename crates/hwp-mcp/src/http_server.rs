@@ -362,10 +362,10 @@ fn validate_origin(headers: &HeaderMap, allowed: &AllowedOrigins) -> Result<(), 
 fn header_get_ci(headers: &HeaderMap, name: &str) -> Option<String> {
     // Case-insensitive lookup by iterating.
     for (k, v) in headers.iter() {
-        if k.as_str().eq_ignore_ascii_case(name) {
-            if let Ok(s) = v.to_str() {
-                return Some(s.to_string());
-            }
+        if k.as_str().eq_ignore_ascii_case(name)
+            && let Ok(s) = v.to_str()
+        {
+            return Some(s.to_string());
         }
     }
     None
@@ -385,10 +385,10 @@ fn add_mcp_headers(resp: &mut Response, protocol_version: &str, session_id: Opti
     if let Ok(v) = HeaderValue::from_str(protocol_version) {
         headers.insert("Mcp-Protocol-Version", v);
     }
-    if let Some(sid) = session_id {
-        if let Ok(v) = HeaderValue::from_str(sid) {
-            headers.insert("Mcp-Session-Id", v);
-        }
+    if let Some(sid) = session_id
+        && let Ok(v) = HeaderValue::from_str(sid)
+    {
+        headers.insert("Mcp-Session-Id", v);
     }
 }
 
@@ -447,6 +447,7 @@ async fn health() -> impl IntoResponse {
     (StatusCode::OK, Json(body))
 }
 
+#[allow(clippy::result_large_err)]
 fn require_sse_accept(headers: &HeaderMap) -> Result<(), Response> {
     let accept = headers
         .get(ACCEPT)
@@ -460,6 +461,7 @@ fn require_sse_accept(headers: &HeaderMap) -> Result<(), Response> {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn ensure_json_content_type(headers: &HeaderMap) -> Result<(), Response> {
     let content_type = headers
         .get(CONTENT_TYPE)
@@ -481,6 +483,7 @@ fn ensure_json_content_type(headers: &HeaderMap) -> Result<(), Response> {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn ensure_post_accept(headers: &HeaderMap) -> Result<(), Response> {
     let accept = headers
         .get(ACCEPT)

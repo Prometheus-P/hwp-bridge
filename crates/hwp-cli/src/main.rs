@@ -35,7 +35,7 @@ fn exit_unsupported_hwpx(p: &Path) -> ! {
                 "details": {
                     "format": "hwpx",
                     "supported": ["hwp"],
-                    "input": p.display(),
+                    "input": p.display().to_string(),
                     "hint": "Convert .hwpx to .hwp or wait for HWPX support (planned)."
                 }
             }

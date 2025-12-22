@@ -14,10 +14,15 @@ use axum::{
     extract::{Query, State},
     http::{
         HeaderMap, HeaderValue, Method, StatusCode,
-        header::{ACCEPT, CONTENT_TYPE, HeaderName, ORIGIN, SET_COOKIE},
+        header::{ACCEPT, CONTENT_TYPE, HeaderName, ORIGIN},
     },
-    response::{Html, IntoResponse, Redirect, Response},
+    response::{IntoResponse, Redirect, Response},
     routing::get,
+};
+#[cfg(feature = "dev-ui")]
+use axum::{
+    http::header::SET_COOKIE,
+    response::Html,
 };
 use base64::Engine;
 use tokio::sync::{RwLock, mpsc};
@@ -1032,9 +1037,7 @@ mod dev_ui {
         token: String,
     }
 
-    async fn ui_login_post(
-        axum::extract::Form(form): axum::extract::Form<LoginForm>,
-    ) -> Response {
+    async fn ui_login_post(axum::extract::Form(form): axum::extract::Form<LoginForm>) -> Response {
         let token = env::var("HWP_DEV_UI_TOKEN").unwrap_or_default();
         if token.is_empty() {
             return (

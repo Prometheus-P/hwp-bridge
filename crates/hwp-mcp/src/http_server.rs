@@ -20,10 +20,7 @@ use axum::{
     routing::get,
 };
 #[cfg(feature = "dev-ui")]
-use axum::{
-    http::header::SET_COOKIE,
-    response::Html,
-};
+use axum::{http::header::SET_COOKIE, response::Html};
 use base64::Engine;
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;

@@ -256,8 +256,8 @@ fn extract_text(
 /// Show information about HWP file
 fn show_info(
     input: &PathBuf,
-    max_decompressed_bytes_per_section: usize,
-    max_records_per_section: usize,
+    _max_decompressed_bytes_per_section: usize,
+    _max_records_per_section: usize,
 ) -> Result<()> {
     info!("Reading file info: {}", input.display());
 

@@ -70,6 +70,7 @@ pub(crate) fn current_limits() -> RuntimeLimits {
         .unwrap_or_else(|_| default_limits_from_env())
 }
 
+#[allow(dead_code)]
 pub(crate) async fn scope_limits<F, R>(limits: RuntimeLimits, fut: F) -> R
 where
     F: std::future::Future<Output = R>,
@@ -135,10 +136,10 @@ struct InspectHwpResult {
 
 fn current_section_limits() -> SectionLimits {
     let l = current_limits();
-    let mut limits = SectionLimits::default();
-    limits.max_decompressed_bytes = l.max_decompressed_bytes_per_section;
-    limits.max_records = l.max_records_per_section;
-    limits
+    SectionLimits {
+        max_decompressed_bytes: l.max_decompressed_bytes_per_section,
+        max_records: l.max_records_per_section,
+    }
 }
 
 fn default_format() -> String {
@@ -549,7 +550,7 @@ fn default_created_at() -> String {
 fn parse_hwp(data: &[u8], file_name: &str) -> Result<(StructuredDocument, FileHeader)> {
     let header = {
         let cursor = std::io::Cursor::new(data);
-        let mut ole = HwpOleFile::open(cursor).context("failed to open OLE container")?;
+        let ole = HwpOleFile::open(cursor).context("failed to open OLE container")?;
         ole.header().clone()
     };
 

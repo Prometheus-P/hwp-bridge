@@ -233,7 +233,7 @@ cargo run -p hwp-cli -- --help
 
 ---
 
-**Last Updated:** 2025-12-11
+**Last Updated:** 2025-12-22
 
 ## Active Technologies
 - Rust 1.85+ (2024 Edition) + serde (직렬화), thiserror (에러 정의) (001-hwp-types-impl)

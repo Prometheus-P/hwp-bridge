@@ -19,6 +19,8 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::get,
 };
+#[cfg(feature = "dev-ui")]
+use axum::{http::header::SET_COOKIE, response::Html};
 use base64::Engine;
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -209,6 +211,17 @@ fn json_pointer_for(key_path: &str) -> String {
         out.push_str(p);
     }
     out
+}
+
+#[allow(dead_code)]
+fn get_str_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<String> {
+    if let Some(v) = query.get(key) && !v.trim().is_empty() {
+        return Some(v.trim().to_string());
+    }
+    let cfg = cfg.as_ref()?;
+    let ptr = json_pointer_for(key);
+    cfg.pointer(&ptr)
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
 }
 
 fn get_usize_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<usize> {
@@ -762,11 +775,11 @@ async fn mcp_post(
     // Create session on initialize and assign protocol.
     let sid_for_request = if is_initialize {
         let sid = Uuid::new_v4().to_string();
-    let sess = McpSession {
-        protocol_version: effective_protocol.clone(),
-        replay: Arc::new(RwLock::new(VecDeque::with_capacity(128))),
-        next_event_id: Arc::new(RwLock::new(0)),
-    };
+        let sess = McpSession {
+            protocol_version: effective_protocol.clone(),
+            replay: Arc::new(RwLock::new(VecDeque::with_capacity(128))),
+            next_event_id: Arc::new(RwLock::new(0)),
+        };
         let mut sessions = state.sessions.write().await;
         sessions.insert(sid.clone(), sess);
         Some(sid)
@@ -952,20 +965,11 @@ async fn handle_rpc_request(
 mod dev_ui {
     use super::*;
 
-    #[derive(Clone)]
-    struct DevUiState {
-        token: String,
-    }
-
-    pub(super) fn dev_ui_router() -> Router<AppState> {
-        let token = env::var("HWP_DEV_UI_TOKEN").unwrap_or_default();
-        let dev = DevUiState { token };
-
+    pub(super) fn dev_ui_router() -> Router<()> {
         Router::new()
             .route("/__dev/ui", get(ui_index))
             .route("/__dev/login", get(ui_login_get).post(ui_login_post))
             .route("/__dev/session", get(ui_session))
-            .with_state(dev)
     }
 
     fn is_authed(headers: &HeaderMap) -> bool {
@@ -1015,11 +1019,9 @@ mod dev_ui {
         token: String,
     }
 
-    async fn ui_login_post(
-        State(dev): State<DevUiState>,
-        axum::extract::Form(form): axum::extract::Form<LoginForm>,
-    ) -> Response {
-        if dev.token.is_empty() {
+    async fn ui_login_post(axum::extract::Form(form): axum::extract::Form<LoginForm>) -> Response {
+        let token = env::var("HWP_DEV_UI_TOKEN").unwrap_or_default();
+        if token.is_empty() {
             return (
                 StatusCode::PRECONDITION_FAILED,
                 "HWP_DEV_UI_TOKEN is not set",
@@ -1027,7 +1029,7 @@ mod dev_ui {
                 .into_response();
         }
 
-        if form.token.trim() == dev.token {
+        if form.token.trim() == token {
             let mut resp = Redirect::to("/__dev/ui").into_response();
             resp.headers_mut().insert(
                 SET_COOKIE,

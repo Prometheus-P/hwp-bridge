@@ -2,6 +2,22 @@
 
 # Contributing to HwpBridge
 
+Copyright (c) 2025 HwpBridge. All Rights Reserved.
+
+---
+
+## License Notice
+
+This project uses a **proprietary license**. By contributing, you agree that:
+
+1. Your contributions become part of the proprietary codebase
+2. You grant HwpBridge full rights to use, modify, and distribute your contributions
+3. You have the right to submit the contribution
+
+For details, see `LICENSE` and `COMMERCIAL_LICENSE.md`.
+
+---
+
 HwpBridge 프로젝트에 기여해 주셔서 감사합니다! 이 문서는 기여 가이드라인을 설명합니다.
 
 ---

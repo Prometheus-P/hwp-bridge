@@ -273,7 +273,7 @@ fn extract_text(
 
 /// Show information about HWP file
 fn show_info(
-    input: &PathBuf,
+    input: &Path,
     _max_decompressed_bytes_per_section: usize,
     _max_records_per_section: usize,
 ) -> Result<()> {

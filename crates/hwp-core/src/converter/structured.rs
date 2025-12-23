@@ -458,10 +458,11 @@ fn render_table_markdown(
             .filter(|cell| !cell.hidden_by_span)
             .map(|cell| {
                 let mut text = cell.plain_text();
-                if text.trim().is_empty() {
-                    if cell.position.row != usize::MAX && cell.position.col != usize::MAX {
-                        text = format!("(r{}c{})", cell.position.row + 1, cell.position.col + 1);
-                    }
+                if text.trim().is_empty()
+                    && cell.position.row != usize::MAX
+                    && cell.position.col != usize::MAX
+                {
+                    text = format!("(r{}c{})", cell.position.row + 1, cell.position.col + 1);
                 }
                 if cell.col_span > 1 || cell.row_span > 1 {
                     text.push_str(&format!(" <span c={} r={}>", cell.col_span, cell.row_span));

@@ -5,6 +5,8 @@ use hwp_types::{FileHeader, HwpError};
 use std::io::{Read, Seek};
 
 use super::header::parse_file_header;
+use super::section::decompress_section_with_limits;
+use super::section::DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION;
 use super::summary::{HwpSummaryInfo, parse_summary_info};
 
 /// HWP OLE 컨테이너 래퍼
@@ -58,7 +60,19 @@ impl<F: Read + Seek> HwpOleFile<F> {
 
     /// DocInfo 스트림 읽기
     pub fn read_doc_info(&mut self) -> Result<Vec<u8>, HwpError> {
-        self.read("/DocInfo")
+        let data = self.read("/DocInfo")?;
+        if self.header.properties.is_compressed() {
+            decompress_section_with_limits(&data, DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION)
+        } else {
+            if data.len() > DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION {
+                return Err(HwpError::SizeLimitExceeded(format!(
+                    "Uncompressed DocInfo exceeds limit: {} > {} bytes",
+                    data.len(),
+                    DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION
+                )));
+            }
+            Ok(data)
+        }
     }
 
     /// BodyText Section 스트림 목록 조회

@@ -3,7 +3,7 @@
 //! BinData (바이너리 데이터) 파서
 //!
 //! HWP DocInfo 스트림의 BinData 레코드를 파싱합니다.
-//! 레코드 태그: 0x02 (BIN_DATA)
+//! 레코드 태그: 0x12 (BIN_DATA)
 
 use hwp_types::{BinData, BinDataType};
 use nom::{IResult, number::complete::le_u16};

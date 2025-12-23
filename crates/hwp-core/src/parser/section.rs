@@ -5,7 +5,7 @@
 //! BodyText/Section 스트림은 zlib으로 압축되어 있습니다.
 //! 압축 해제 후 레코드 단위로 파싱합니다.
 
-use flate2::read::ZlibDecoder;
+use flate2::read::{DeflateDecoder, ZlibDecoder};
 use hwp_types::HwpError;
 use std::io::Read;
 
@@ -15,11 +15,14 @@ use super::record::{Record, RecordIterator};
 pub const DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION: usize = 64 * 1024 * 1024; // 64MB
 /// Default max records per section (safety)
 pub const DEFAULT_MAX_RECORDS_PER_SECTION: usize = 200_000;
+/// Default max sections per document (safety)
+pub const DEFAULT_MAX_SECTIONS: usize = 50_000;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SectionLimits {
     pub max_decompressed_bytes: usize,
     pub max_records: usize,
+    pub max_sections: usize,
 }
 
 impl Default for SectionLimits {
@@ -27,13 +30,14 @@ impl Default for SectionLimits {
         Self {
             max_decompressed_bytes: DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION,
             max_records: DEFAULT_MAX_RECORDS_PER_SECTION,
+            max_sections: DEFAULT_MAX_SECTIONS,
         }
     }
 }
 
 /// Section 압축 해제
 ///
-/// HWP의 BodyText/Section은 zlib (deflate) 압축입니다.
+/// HWP의 BodyText/Section은 deflate 또는 zlib 스트림으로 압축됩니다.
 /// 압축 해제 후 레코드 스트림을 반환합니다.
 pub fn decompress_section(data: &[u8]) -> Result<Vec<u8>, HwpError> {
     decompress_section_with_limits(data, DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION)
@@ -44,13 +48,32 @@ pub fn decompress_section_with_limits(
     data: &[u8],
     max_decompressed_bytes: usize,
 ) -> Result<Vec<u8>, HwpError> {
-    let mut decoder = ZlibDecoder::new(data);
+    let deflate_result = read_with_limit(DeflateDecoder::new(data), max_decompressed_bytes);
+    match deflate_result {
+        Ok(out) => Ok(out),
+        Err(HwpError::SizeLimitExceeded(_)) => deflate_result,
+        Err(deflate_err) => {
+            let zlib_result = read_with_limit(ZlibDecoder::new(data), max_decompressed_bytes);
+            zlib_result.map_err(|zlib_err| {
+                HwpError::ParseError(format!(
+                    "Decompression failed: deflate={}, zlib={}",
+                    deflate_err, zlib_err
+                ))
+            })
+        }
+    }
+}
+
+fn read_with_limit<R: Read>(
+    mut reader: R,
+    max_decompressed_bytes: usize,
+) -> Result<Vec<u8>, HwpError> {
     let mut out = Vec::new();
     let mut buf = [0u8; 8192];
     let mut total: usize = 0;
 
     loop {
-        let n = decoder
+        let n = reader
             .read(&mut buf)
             .map_err(|e| HwpError::ParseError(format!("Decompression failed: {}", e)))?;
         if n == 0 {
@@ -152,16 +175,16 @@ pub fn extract_text_from_para_text(data: &[u8]) -> Result<String, HwpError> {
 mod tests {
     use super::*;
     use flate2::Compression;
-    use flate2::write::ZlibEncoder;
+    use flate2::write::DeflateEncoder;
     use std::io::Write;
 
     // ═══════════════════════════════════════════════════════════════
     // Test Helpers
     // ═══════════════════════════════════════════════════════════════
 
-    /// 테스트 데이터를 zlib 압축
+    /// 테스트 데이터를 deflate 압축
     fn compress_data(data: &[u8]) -> Vec<u8> {
-        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+        let mut encoder = DeflateEncoder::new(Vec::new(), Compression::new(9));
         encoder.write_all(data).unwrap();
         encoder.finish().unwrap()
     }
@@ -182,7 +205,7 @@ mod tests {
     // ═══════════════════════════════════════════════════════════════
 
     #[test]
-    fn test_should_decompress_zlib_data() {
+    fn test_should_decompress_deflate_data() {
         // Arrange
         let original = b"Hello, HWP World!";
         let compressed = compress_data(original);
@@ -196,9 +219,9 @@ mod tests {
     }
 
     #[test]
-    fn test_should_return_error_when_invalid_zlib() {
-        // Arrange: Invalid zlib data
-        let invalid = vec![0x00, 0x01, 0x02, 0x03];
+    fn test_should_return_error_when_invalid_deflate() {
+        // Arrange: Invalid deflate data (a bit longer, more likely to cause an error)
+        let invalid = vec![0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
 
         // Act
         let result = decompress_section(&invalid);
@@ -208,8 +231,8 @@ mod tests {
     }
 
     #[test]
-    fn test_should_decompress_empty_data() {
-        // Arrange: zlib compressed empty data
+    fn test_should_decompress_empty_deflate_data() {
+        // Arrange: deflate compressed empty data
         let compressed = compress_data(&[]);
 
         // Act
@@ -225,8 +248,8 @@ mod tests {
     // ═══════════════════════════════════════════════════════════════
 
     #[test]
-    fn test_should_parse_section_with_records() {
-        // Arrange: Create a section with one PARA_TEXT record
+    fn test_should_parse_section_with_deflate_records() {
+        // Arrange: Create a section with one PARA_TEXT record, compressed with Raw Deflate
         let text_data = encode_utf16le("안녕");
         let mut section_data = create_record_header(0x43, 0, text_data.len() as u32);
         section_data.extend_from_slice(&text_data);

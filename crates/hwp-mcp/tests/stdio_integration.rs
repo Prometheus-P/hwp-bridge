@@ -198,7 +198,7 @@ fn test_should_return_error_when_invalid_base64() {
     // Act: 잘못된 base64 콘텐츠
     let request = make_tools_call_request(
         2,
-        "hwp.inspect",
+        "read_hwp_summary",
         json!({
             "file": {
                 "name": "test.hwp",
@@ -235,7 +235,7 @@ fn test_should_return_error_when_invalid_hwp_content() {
 
     let request = make_tools_call_request(
         2,
-        "hwp.inspect",
+        "read_hwp_summary",
         json!({
             "file": {
                 "name": "invalid.hwp",
@@ -367,7 +367,7 @@ fn test_should_reject_empty_content() {
     // Act: 빈 content
     let request = make_tools_call_request(
         2,
-        "hwp.inspect",
+        "read_hwp_summary",
         json!({
             "file": {
                 "name": "test.hwp",
@@ -401,7 +401,7 @@ fn test_should_reject_missing_file_parameter() {
     let _ = initialize_server(&mut stdin, &mut reader);
 
     // Act: file 파라미터 없음
-    let request = make_tools_call_request(2, "hwp.inspect", json!({}));
+    let request = make_tools_call_request(2, "read_hwp_summary", json!({}));
     send_request(&mut stdin, &request);
     let response = recv_response(&mut reader);
 
@@ -439,7 +439,7 @@ fn test_should_reject_hwpx_by_magic_bytes() {
 
     let request = make_tools_call_request(
         2,
-        "hwp.inspect",
+        "read_hwp_summary",
         json!({
             "file": {
                 "name": "test.hwp",  // .hwp 확장자지만 HWPX 매직
@@ -477,7 +477,7 @@ fn test_should_reject_hwpx_by_extension() {
 
     let request = make_tools_call_request(
         2,
-        "hwp.inspect",
+        "read_hwp_summary",
         json!({
             "file": {
                 "name": "test.hwpx",

@@ -119,6 +119,9 @@ pub struct CharShape {
     pub shade_color: u32,
     /// 그림자 색상
     pub shadow_color: u32,
+    /// 취소선 색상 (5.0.3.0+)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub strike_color: Option<u32>,
     /// 테두리/배경 ID (BorderFill 참조)
     pub border_fill_id: u16,
 }
@@ -140,6 +143,7 @@ impl CharShape {
             underline_color: 0x000000, // 검정
             shade_color: 0xFFFFFF,     // 흰색
             shadow_color: 0x808080,    // 회색
+            strike_color: None,
             border_fill_id: 0,
         }
     }

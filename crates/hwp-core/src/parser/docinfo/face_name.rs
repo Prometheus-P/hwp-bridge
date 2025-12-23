@@ -3,7 +3,7 @@
 //! FaceName (글꼴 이름) 파서
 //!
 //! HWP DocInfo 스트림의 FaceName 레코드를 파싱합니다.
-//! 레코드 태그: 0x03 (FACE_NAME)
+//! 레코드 태그: 0x13 (FACE_NAME)
 
 use hwp_types::{FaceName, Panose, SubstituteFontType};
 use nom::{IResult, bytes::complete::take, number::complete::le_u8};
@@ -15,10 +15,10 @@ use crate::parser::primitives::parse_utf16le_string;
 /// # Format (가변 길이)
 /// - properties: u8 = 1 byte
 /// - name: UTF-16LE string (length-prefixed)
-/// - \[optional\] substitute_type: u8 (if properties & 0x01)
-/// - \[optional\] substitute_name: UTF-16LE string (if properties & 0x01)
-/// - \[optional\] panose: \[u8; 10\] (if properties & 0x80)
-/// - \[optional\] default_name: UTF-16LE string (if properties & 0x04)
+/// - \[optional\] substitute_type: u8 (if properties & 0x80)
+/// - \[optional\] substitute_name: UTF-16LE string (if properties & 0x80)
+/// - \[optional\] panose: \[u8; 10\] (if properties & 0x40)
+/// - \[optional\] default_name: UTF-16LE string (if properties & 0x20)
 pub fn parse_face_name(input: &[u8]) -> IResult<&[u8], FaceName> {
     // 속성 플래그
     let (input, properties) = le_u8(input)?;
@@ -26,8 +26,9 @@ pub fn parse_face_name(input: &[u8]) -> IResult<&[u8], FaceName> {
     // 글꼴 이름 (필수)
     let (input, name) = parse_utf16le_string(input)?;
 
-    // 대체 글꼴 (선택적: bit 0)
-    let (input, substitute_type, substitute_name) = if properties & 0x01 != 0 && !input.is_empty() {
+    // 대체 글꼴 (선택적: bit 7)
+    let (input, substitute_type, substitute_name) =
+        if properties & 0x80 != 0 && !input.is_empty() {
         let (input, sub_type_raw) = le_u8(input)?;
         let sub_type = SubstituteFontType::from_u8(sub_type_raw);
 
@@ -42,8 +43,8 @@ pub fn parse_face_name(input: &[u8]) -> IResult<&[u8], FaceName> {
         (input, SubstituteFontType::Unknown, String::new())
     };
 
-    // PANOSE 정보 (선택적: bit 7)
-    let (input, panose) = if properties & 0x80 != 0 && input.len() >= 10 {
+    // PANOSE 정보 (선택적: bit 6)
+    let (input, panose) = if properties & 0x40 != 0 && input.len() >= 10 {
         let (input, panose_bytes) = take(10usize)(input)?;
         let panose_arr: [u8; 10] = panose_bytes.try_into().unwrap();
         (input, Some(Panose::new(panose_arr)))
@@ -51,8 +52,8 @@ pub fn parse_face_name(input: &[u8]) -> IResult<&[u8], FaceName> {
         (input, None)
     };
 
-    // 기본 글꼴 이름 (선택적: bit 2)
-    let (input, default_name) = if properties & 0x04 != 0 && input.len() >= 2 {
+    // 기본 글꼴 이름 (선택적: bit 5)
+    let (input, default_name) = if properties & 0x20 != 0 && input.len() >= 2 {
         let (input, def_name) = parse_utf16le_string(input)?;
         (input, def_name)
     } else {
@@ -121,7 +122,7 @@ mod tests {
     #[test]
     fn test_should_parse_face_name_with_substitute() {
         // Arrange
-        let mut data = vec![0x01]; // properties: has substitute
+        let mut data = vec![0x80]; // properties: has substitute
         data.extend(create_utf16le_string("Custom Font"));
         data.push(0x01); // substitute_type: TrueType
         data.extend(create_utf16le_string("Arial"));
@@ -140,7 +141,7 @@ mod tests {
     #[test]
     fn test_should_parse_face_name_with_panose() {
         // Arrange
-        let mut data = vec![0x80]; // properties: has PANOSE
+        let mut data = vec![0x40]; // properties: has PANOSE
         data.extend(create_utf16le_string("Times New Roman"));
         // PANOSE: 10 bytes
         data.extend_from_slice(&[2, 2, 6, 3, 5, 4, 5, 2, 3, 4]);
@@ -160,7 +161,7 @@ mod tests {
     #[test]
     fn test_should_parse_face_name_with_default() {
         // Arrange
-        let mut data = vec![0x04]; // properties: has default
+        let mut data = vec![0x20]; // properties: has default
         data.extend(create_utf16le_string("Fancy Font"));
         data.extend(create_utf16le_string("굴림")); // default font
 
@@ -177,7 +178,7 @@ mod tests {
     #[test]
     fn test_should_parse_face_name_with_all_options() {
         // Arrange
-        let mut data = vec![0x85]; // properties: substitute + default + panose
+        let mut data = vec![0xE0]; // properties: substitute + default + panose
         data.extend(create_utf16le_string("한컴돋움"));
         data.push(0x01); // substitute_type: TrueType
         data.extend(create_utf16le_string("맑은 고딕"));

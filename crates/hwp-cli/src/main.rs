@@ -81,6 +81,10 @@ enum Commands {
         /// Max records per section (safety)
         #[arg(long, default_value_t = 200000)]
         max_records_per_section: usize,
+
+        /// Max sections per document (safety)
+        #[arg(long, default_value_t = 50000)]
+        max_sections: usize,
     },
 
     /// Show information about HWP file
@@ -119,6 +123,10 @@ enum Commands {
         /// Max records per section (safety)
         #[arg(long, default_value_t = 200000)]
         max_records_per_section: usize,
+
+        /// Max sections per document (safety)
+        #[arg(long, default_value_t = 50000)]
+        max_sections: usize,
     },
 
     /// Export semantic markdown derived from StructuredDocument.
@@ -138,6 +146,10 @@ enum Commands {
         /// Max records per section (safety)
         #[arg(long, default_value_t = 200000)]
         max_records_per_section: usize,
+
+        /// Max sections per document (safety)
+        #[arg(long, default_value_t = 50000)]
+        max_sections: usize,
     },
 }
 
@@ -154,6 +166,7 @@ fn main() -> Result<()> {
             output,
             max_decompressed_bytes_per_section,
             max_records_per_section,
+            max_sections,
         } => {
             ensure_supported_input_or_exit(&input);
             extract_text(
@@ -161,6 +174,7 @@ fn main() -> Result<()> {
                 output.as_deref(),
                 max_decompressed_bytes_per_section,
                 max_records_per_section,
+                max_sections,
             )?;
         }
         Commands::Info {
@@ -181,6 +195,7 @@ fn main() -> Result<()> {
             pretty,
             max_decompressed_bytes_per_section,
             max_records_per_section,
+            max_sections,
         } => {
             ensure_supported_input_or_exit(&input);
             export_json(
@@ -189,6 +204,7 @@ fn main() -> Result<()> {
                 pretty,
                 max_decompressed_bytes_per_section,
                 max_records_per_section,
+                max_sections,
             )?;
         }
         Commands::Markdown {
@@ -196,6 +212,7 @@ fn main() -> Result<()> {
             output,
             max_decompressed_bytes_per_section,
             max_records_per_section,
+            max_sections,
         } => {
             ensure_supported_input_or_exit(&input);
             export_markdown(
@@ -203,6 +220,7 @@ fn main() -> Result<()> {
                 output.as_deref(),
                 max_decompressed_bytes_per_section,
                 max_records_per_section,
+                max_sections,
             )?;
         }
     }
@@ -216,6 +234,7 @@ fn extract_text(
     output: Option<&std::path::Path>,
     max_decompressed_bytes_per_section: usize,
     max_records_per_section: usize,
+    max_sections: usize,
 ) -> Result<()> {
     info!("Extracting text from: {}", input.display());
 
@@ -226,6 +245,7 @@ fn extract_text(
     let limits = SectionLimits {
         max_decompressed_bytes: max_decompressed_bytes_per_section,
         max_records: max_records_per_section,
+        max_sections,
     };
 
     let mut extractor = HwpTextExtractor::open(reader)
@@ -298,6 +318,7 @@ fn export_json(
     pretty: bool,
     max_decompressed_bytes_per_section: usize,
     max_records_per_section: usize,
+    max_sections: usize,
 ) -> Result<()> {
     info!("Exporting structured JSON from: {}", input.display());
 
@@ -308,6 +329,7 @@ fn export_json(
     let limits = SectionLimits {
         max_decompressed_bytes: max_decompressed_bytes_per_section,
         max_records: max_records_per_section,
+        max_sections,
     };
 
     let title = Some(derive_title_from_path(input));
@@ -341,6 +363,7 @@ fn export_markdown(
     output: Option<&std::path::Path>,
     max_decompressed_bytes_per_section: usize,
     max_records_per_section: usize,
+    max_sections: usize,
 ) -> Result<()> {
     info!("Exporting semantic markdown from: {}", input.display());
 
@@ -351,6 +374,7 @@ fn export_markdown(
     let limits = SectionLimits {
         max_decompressed_bytes: max_decompressed_bytes_per_section,
         max_records: max_records_per_section,
+        max_sections,
     };
 
     let title = Some(derive_title_from_path(input));

@@ -225,6 +225,8 @@ pub enum ContentBlock {
     Paragraph(StructuredParagraph),
     /// 표
     Table(StructuredTable),
+    /// 차트
+    Chart(StructuredChart),
     /// 이미지
     Image(StructuredImage),
     /// 수식
@@ -762,6 +764,29 @@ impl StructuredImage {
         self.alt_text = Some(alt.into());
         self
     }
+}
+
+/// 구조화된 차트 (OLE 기반)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct StructuredChart {
+    /// BinData ID (있는 경우)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bin_data_id: Option<u16>,
+    /// 스트림 유형 (Contents / OOXML.ChartContents 등)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_type: Option<String>,
+    /// 차트 제목
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// 차트 유형
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chart_type: Option<String>,
+    /// 차트 데이터 격자
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_grid: Option<StructuredTable>,
+    /// 추가 설명
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -145,13 +145,13 @@ pub struct RecordHeader {
 
 /// 레코드 태그 종류
 pub enum HwpTag {
-    // DocInfo tags (0x00 ~ 0x1F)
-    DocumentProperties = 0x00,
-    IdMappings = 0x01,
-    BinData = 0x02,
-    FaceName = 0x03,
-    CharShape = 0x07,
-    ParaShape = 0x09,
+    // DocInfo tags (HWPTAG_BEGIN = 0x10)
+    DocumentProperties = 0x10,
+    IdMappings = 0x11,
+    BinData = 0x12,
+    FaceName = 0x13,
+    CharShape = 0x15,
+    ParaShape = 0x19,
 
     // BodyText tags (0x40 ~ 0x7F)
     ParaHeader = 0x42,
@@ -161,7 +161,6 @@ pub enum HwpTag {
 
     // Table tags
     Table = 0x4D,
-    TableCell = 0x4E,
 }
 ```
 
@@ -207,12 +206,21 @@ pub enum HwpTag {
       "inputSchema": {
         "type": "object",
         "properties": {
-          "path": {
-            "type": "string",
-            "description": "HWP 파일 경로"
+          "file": {
+            "type": "object",
+            "description": "HWP payload (base64) or local path (when enabled).",
+            "properties": {
+              "name": { "type": "string" },
+              "content": { "type": "string", "contentEncoding": "base64" },
+              "path": { "type": "string" }
+            },
+            "oneOf": [
+              { "required": ["name", "content"] },
+              { "required": ["path"] }
+            ]
           }
         },
-        "required": ["path"]
+        "required": ["file"]
       }
     },
     {
@@ -221,16 +229,26 @@ pub enum HwpTag {
       "inputSchema": {
         "type": "object",
         "properties": {
-          "path": {
-            "type": "string",
-            "description": "HWP 파일 경로"
+          "file": {
+            "type": "object",
+            "description": "HWP payload (base64) or local path (when enabled).",
+            "properties": {
+              "name": { "type": "string" },
+              "content": { "type": "string", "contentEncoding": "base64" },
+              "path": { "type": "string" }
+            },
+            "oneOf": [
+              { "required": ["name", "content"] },
+              { "required": ["path"] }
+            ]
           },
-          "max_length": {
-            "type": "integer",
-            "description": "최대 문자 수 (기본값: 10000)"
+          "format": {
+            "type": "string",
+            "enum": ["semantic-markdown", "plain"],
+            "default": "semantic-markdown"
           }
         },
-        "required": ["path"]
+        "required": ["file"]
       }
     },
     {
@@ -239,12 +257,21 @@ pub enum HwpTag {
       "inputSchema": {
         "type": "object",
         "properties": {
-          "path": {
-            "type": "string",
-            "description": "HWP 파일 경로"
+          "file": {
+            "type": "object",
+            "description": "HWP payload (base64) or local path (when enabled).",
+            "properties": {
+              "name": { "type": "string" },
+              "content": { "type": "string", "contentEncoding": "base64" },
+              "path": { "type": "string" }
+            },
+            "oneOf": [
+              { "required": ["name", "content"] },
+              { "required": ["path"] }
+            ]
           }
         },
-        "required": ["path"]
+        "required": ["file"]
       }
     }
   ]

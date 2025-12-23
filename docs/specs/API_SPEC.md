@@ -51,12 +51,12 @@ HwpBridge는 두 가지 인터페이스를 제공합니다:
 
 ## 5. MCP Tools
 
-Option A의 MCP 서버(`crates/hwp-mcp`)는 **2개 도구**를 제공합니다.
+Option A의 MCP 서버(`crates/hwp-mcp`)는 **3개 도구**를 제공합니다.
 
 > 입력은 **파일 경로가 아니라 base64 인코딩된 파일 바이트**입니다.  
 > (호스트가 파일 접근 권한을 어떻게 주는지에 따라 달라지기 때문에, 서버는 경로를 신뢰하지 않습니다.)
 
-### 5.1 `hwp.inspect`
+### 5.1 `read_hwp_summary`
 
 HWP 파일의 메타데이터/통계 정보를 반환합니다.
 
@@ -99,7 +99,7 @@ HWP 파일의 메타데이터/통계 정보를 반환합니다.
 }
 ```
 
-### 5.2 `hwp.to_markdown`
+### 5.2 `read_hwp_content`
 
 HWP 내용을 **(1) semantic-markdown** 또는 **(2) plain text**로 변환합니다.  
 또한 `structured_content`로 `StructuredDocument`(문단/표 구조 포함)를 함께 반환합니다.
@@ -122,6 +122,29 @@ HWP 내용을 **(1) semantic-markdown** 또는 **(2) plain text**로 변환합�
       "type": "string",
       "enum": ["semantic-markdown", "plain"],
       "default": "semantic-markdown"
+    }
+  },
+  "required": ["file"]
+}
+```
+
+### 5.3 `convert_to_gdocs`
+
+HWP 파일을 Google Docs로 변환합니다. (P2, 현재 미구현)
+
+**Input Schema:**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "file": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "content": { "type": "string", "contentEncoding": "base64" }
+      },
+      "required": ["name", "content"]
     }
   },
   "required": ["file"]

@@ -3,7 +3,7 @@
 //! ParaShape (문단 모양) 파서
 //!
 //! HWP DocInfo 스트림의 ParaShape 레코드를 파싱합니다.
-//! 레코드 태그: 0x09 (PARA_SHAPE)
+//! 레코드 태그: 0x19 (PARA_SHAPE)
 
 use hwp_types::{LineSpaceType, ParaShape, ParaShapeAttr};
 use nom::{

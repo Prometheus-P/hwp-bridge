@@ -441,10 +441,10 @@ mod tests {
     fn test_should_convert_tag_id_to_enum() {
         // Arrange
         let test_cases = [
-            (0x00u16, RecordTag::DocumentProperties),
-            (0x03, RecordTag::FaceName),
-            (0x07, RecordTag::CharShape),
-            (0x09, RecordTag::ParaShape),
+            (0x10u16, RecordTag::DocumentProperties),
+            (0x13, RecordTag::FaceName),
+            (0x15, RecordTag::CharShape),
+            (0x19, RecordTag::ParaShape),
             (0x42, RecordTag::ParaHeader),
             (0x43, RecordTag::ParaText),
             (0x4D, RecordTag::Table),

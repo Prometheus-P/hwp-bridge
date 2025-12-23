@@ -8,7 +8,7 @@ use anyhow::{Context, anyhow};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use hwp_core::{
     HwpOleFile, converter::structured::to_semantic_markdown, export::parse_structured_document,
-    parser::SectionLimits,
+    parser::{DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION, SectionLimits},
 };
 use hwp_types::StructuredDocument;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 pub fn list_tools() -> Value {
     json!([
         {
-            "name": "hwp.inspect",
+            "name": "read_hwp_summary",
             "description": "Parse an HWP file and return structured metadata (title, author, section/paragraph/table counts).",
             "inputSchema": {
                 "type": "object",
@@ -48,13 +48,30 @@ pub fn list_tools() -> Value {
             }
         },
         {
-            "name": "hwp.to_markdown",
+            "name": "read_hwp_content",
             "description": "Convert HWP to semantic markdown or plain text.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "file": {
-                        "description": "The HWP file"
+                        "description": "The HWP file (inline base64 or local path)",
+                        "oneOf": [
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "name": { "type": "string", "description": "Filename" },
+                                    "content": { "type": "string", "description": "Base64-encoded file content" }
+                                },
+                                "required": ["name", "content"]
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "path": { "type": "string", "description": "Local file path" }
+                                },
+                                "required": ["path"]
+                            }
+                        ]
                     },
                     "format": {
                         "type": "string",
@@ -66,24 +83,31 @@ pub fn list_tools() -> Value {
             }
         },
         {
-            "name": "hwp.extract",
-            "description": "Extract plain text from HWP (fast path).",
+            "name": "convert_to_gdocs",
+            "description": "Convert HWP to Google Docs (not implemented yet).",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "file": { "description": "The HWP file" }
-                },
-                "required": ["file"]
-            }
-        },
-        {
-            "name": "hwp.to_json",
-            "description": "Convert HWP to structured JSON output.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "file": { "description": "The HWP file" },
-                    "pretty": { "type": "boolean", "default": false }
+                    "file": {
+                        "description": "The HWP file (inline base64 or local path)",
+                        "oneOf": [
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "name": { "type": "string", "description": "Filename" },
+                                    "content": { "type": "string", "description": "Base64-encoded file content" }
+                                },
+                                "required": ["name", "content"]
+                            },
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "path": { "type": "string", "description": "Local file path" }
+                                },
+                                "required": ["path"]
+                            }
+                        ]
+                    }
                 },
                 "required": ["file"]
             }
@@ -151,9 +175,17 @@ fn read_tool_file(file: &ToolFile, max_bytes: usize) -> anyhow::Result<(String, 
         }
         ToolFile::Path { path, name } => {
             // Only allow local file access if HWP_ALLOW_LOCAL_FILES=1
-            if std::env::var("HWP_ALLOW_LOCAL_FILES").ok().as_deref() != Some("1") {
+            let allow_local = std::env::var("HWP_ALLOW_LOCAL_FILES")
+                .ok()
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false)
+                || std::env::var("HWP_ALLOW_PATH_INPUT")
+                    .ok()
+                    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                    .unwrap_or(false);
+            if !allow_local {
                 anyhow::bail!(
-                    "Local file access is disabled. Set HWP_ALLOW_LOCAL_FILES=1 to enable."
+                    "Local file access is disabled. Set HWP_ALLOW_LOCAL_FILES=1 or HWP_ALLOW_PATH_INPUT=1 to enable."
                 );
             }
             let bytes =
@@ -175,6 +207,7 @@ fn read_tool_file(file: &ToolFile, max_bytes: usize) -> anyhow::Result<(String, 
 fn parse_hwp(
     bytes: &[u8],
     name: &str,
+    limits: SectionLimits,
 ) -> anyhow::Result<(StructuredDocument, hwp_types::FileHeader)> {
     let cursor = Cursor::new(bytes);
     let ole = HwpOleFile::open(cursor).context("Failed to open OLE container")?;
@@ -189,7 +222,6 @@ fn parse_hwp(
 
     // Re-create cursor for parse_structured_document
     let cursor = Cursor::new(bytes);
-    let limits = SectionLimits::default();
     let doc = parse_structured_document(cursor, Some(name.to_string()), limits)
         .with_context(|| format!("Failed to parse document: {}", name))?;
 
@@ -226,14 +258,19 @@ pub async fn call_tool(
     name: &str,
     arguments: Value,
     max_file_bytes: usize,
-    _max_records: usize,
-    _max_sections: usize,
+    max_records: usize,
+    max_sections: usize,
 ) -> anyhow::Result<Value> {
+    let limits = SectionLimits {
+        max_decompressed_bytes: DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION,
+        max_records,
+        max_sections,
+    };
     match name {
-        "hwp.inspect" => {
+        "read_hwp_summary" | "hwp.inspect" => {
             let args: InspectArgs = serde_json::from_value(arguments)?;
             let (filename, bytes) = read_tool_file(&args.file, max_file_bytes)?;
-            let (doc, header) = parse_hwp(&bytes, &filename)?;
+            let (doc, header) = parse_hwp(&bytes, &filename, limits)?;
 
             let result = InspectResult {
                 title: doc
@@ -264,29 +301,29 @@ pub async fn call_tool(
             );
             Ok(tool_response(summary, Some(serde_json::to_value(result)?)))
         }
-        "hwp.to_markdown" => {
+        "read_hwp_content" | "hwp.to_markdown" => {
             let args: ConvertArgs = serde_json::from_value(arguments)?;
             let (filename, bytes) = read_tool_file(&args.file, max_file_bytes)?;
-            let (doc, _header) = parse_hwp(&bytes, &filename)?;
+            let (doc, _header) = parse_hwp(&bytes, &filename, limits)?;
 
             let text = match args.format.to_lowercase().as_str() {
                 "semantic-markdown" => to_semantic_markdown(&doc),
                 "plain" | "plain-text" | "text" => doc.extract_text(),
                 other => anyhow::bail!("Unsupported format: {}", other),
             };
-            Ok(tool_response(text, None))
+            Ok(tool_response(text, Some(serde_json::to_value(&doc)?)))
         }
         "hwp.extract" => {
             let args: InspectArgs = serde_json::from_value(arguments)?;
             let (filename, bytes) = read_tool_file(&args.file, max_file_bytes)?;
-            let (doc, _header) = parse_hwp(&bytes, &filename)?;
+            let (doc, _header) = parse_hwp(&bytes, &filename, limits)?;
             let text = doc.extract_text();
-            Ok(tool_response(text, None))
+            Ok(tool_response(text, Some(serde_json::to_value(&doc)?)))
         }
         "hwp.to_json" => {
             let args: JsonArgs = serde_json::from_value(arguments)?;
             let (filename, bytes) = read_tool_file(&args.file, max_file_bytes)?;
-            let (doc, _header) = parse_hwp(&bytes, &filename)?;
+            let (doc, _header) = parse_hwp(&bytes, &filename, limits)?;
 
             let json_str = if args.pretty {
                 serde_json::to_string_pretty(&doc)?
@@ -294,6 +331,12 @@ pub async fn call_tool(
                 serde_json::to_string(&doc)?
             };
             Ok(tool_response(json_str, Some(serde_json::to_value(&doc)?)))
+        }
+        "convert_to_gdocs" => {
+            let _args: InspectArgs = serde_json::from_value(arguments)?;
+            anyhow::bail!(
+                "convert_to_gdocs is not implemented yet. Use read_hwp_content for markdown export."
+            )
         }
         _ => Err(anyhow!("Unknown tool: {}", name)),
     }

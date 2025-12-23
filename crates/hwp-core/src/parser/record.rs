@@ -10,16 +10,27 @@ use hwp_types::HwpError;
 /// HWP 레코드 태그 ID
 #[allow(dead_code)]
 pub mod tags {
-    // DocInfo tags (0x00 - 0x1F)
-    pub const DOCUMENT_PROPERTIES: u16 = 0x00;
-    pub const ID_MAPPINGS: u16 = 0x01;
-    pub const BIN_DATA: u16 = 0x02;
-    pub const FACE_NAME: u16 = 0x03;
-    pub const BORDER_FILL: u16 = 0x04;
-    pub const CHAR_SHAPE: u16 = 0x07;
-    pub const TAB_DEF: u16 = 0x08;
-    pub const PARA_SHAPE: u16 = 0x09;
-    pub const STYLE: u16 = 0x0A;
+    // DocInfo tags (HWPTAG_BEGIN = 0x10)
+    pub const DOCUMENT_PROPERTIES: u16 = 0x10;
+    pub const ID_MAPPINGS: u16 = 0x11;
+    pub const BIN_DATA: u16 = 0x12;
+    pub const FACE_NAME: u16 = 0x13;
+    pub const BORDER_FILL: u16 = 0x14;
+    pub const CHAR_SHAPE: u16 = 0x15;
+    pub const TAB_DEF: u16 = 0x16;
+    pub const NUMBERING: u16 = 0x17;
+    pub const BULLET: u16 = 0x18;
+    pub const PARA_SHAPE: u16 = 0x19;
+    pub const STYLE: u16 = 0x1A;
+    pub const DOC_DATA: u16 = 0x1B;
+    pub const DISTRIBUTE_DOC_DATA: u16 = 0x1C;
+    pub const COMPATIBLE_DOCUMENT: u16 = 0x1E;
+    pub const LAYOUT_COMPATIBILITY: u16 = 0x1F;
+    pub const TRACKCHANGE: u16 = 0x20;
+    pub const MEMO_SHAPE: u16 = 0x5C;
+    pub const FORBIDDEN_CHAR: u16 = 0x5E;
+    pub const TRACK_CHANGE: u16 = 0x60;
+    pub const TRACK_CHANGE_AUTHOR: u16 = 0x61;
 
     // BodyText tags (0x40 - 0x7F)
     pub const PARA_HEADER: u16 = 0x42;
@@ -31,9 +42,27 @@ pub mod tags {
 
     // Table/Shape tags
     pub const TABLE: u16 = 0x4D;
-    pub const LIST_HEADER: u16 = 0x4F;
-    pub const PAGE_DEF: u16 = 0x50;
-    pub const SHAPE_COMPONENT: u16 = 0x51;
+    pub const LIST_HEADER: u16 = 0x48;
+    pub const PAGE_DEF: u16 = 0x49;
+    pub const FOOTNOTE_SHAPE: u16 = 0x4A;
+    pub const PAGE_BORDER_FILL: u16 = 0x4B;
+    pub const SHAPE_COMPONENT: u16 = 0x4C;
+    pub const SHAPE_COMPONENT_LINE: u16 = 0x4E;
+    pub const SHAPE_COMPONENT_RECTANGLE: u16 = 0x4F;
+    pub const SHAPE_COMPONENT_ELLIPSE: u16 = 0x50;
+    pub const SHAPE_COMPONENT_ARC: u16 = 0x51;
+    pub const SHAPE_COMPONENT_POLYGON: u16 = 0x52;
+    pub const SHAPE_COMPONENT_CURVE: u16 = 0x53;
+    pub const SHAPE_COMPONENT_OLE: u16 = 0x54;
+    pub const SHAPE_COMPONENT_PICTURE: u16 = 0x55;
+    pub const SHAPE_COMPONENT_CONTAINER: u16 = 0x56;
+    pub const CTRL_DATA: u16 = 0x57;
+    pub const EQEDIT: u16 = 0x58;
+    pub const SHAPE_COMPONENT_TEXTART: u16 = 0x5A;
+    pub const FORM_OBJECT: u16 = 0x5B;
+    pub const MEMO_LIST: u16 = 0x5D;
+    pub const CHART_DATA: u16 = 0x5F;
+    pub const VIDEO_DATA: u16 = 0x62;
 }
 
 /// Extended size marker (size가 4095면 다음 4바이트에 실제 크기)

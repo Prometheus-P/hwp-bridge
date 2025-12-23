@@ -45,6 +45,12 @@ impl<F: Read + Seek> HwpTextExtractor<F> {
         let mut section_idx = 0;
 
         loop {
+            if section_idx >= self.limits.max_sections {
+                return Err(HwpError::SizeLimitExceeded(format!(
+                    "Section count exceeds limit: {} > {}",
+                    section_idx, self.limits.max_sections
+                )));
+            }
             match self.ole.read_section(section_idx) {
                 Ok(compressed_data) => {
                     let section_text = self.extract_section_text(&compressed_data)?;
@@ -86,7 +92,7 @@ impl<F: Read + Seek> HwpTextExtractor<F> {
 mod tests {
     use super::*;
     use flate2::Compression;
-    use flate2::write::ZlibEncoder;
+    use flate2::write::DeflateEncoder;
     use std::io::{Cursor, Write};
 
     // ═══════════════════════════════════════════════════════════════
@@ -124,6 +130,41 @@ mod tests {
             stream
                 .write_all(&compressed)
                 .expect("Failed to write Section0");
+
+            cfb.flush().expect("Failed to flush CFB");
+        }
+        buffer
+    }
+
+    fn create_minimal_hwp_with_sections(texts: &[&str]) -> Vec<u8> {
+        use cfb::CompoundFile;
+
+        let mut buffer = Vec::new();
+        {
+            let cursor = Cursor::new(&mut buffer);
+            let mut cfb = CompoundFile::create(cursor).expect("Failed to create CFB");
+
+            let file_header = create_file_header();
+            let mut stream = cfb
+                .create_stream("/FileHeader")
+                .expect("Failed to create FileHeader");
+            stream
+                .write_all(&file_header)
+                .expect("Failed to write FileHeader");
+
+            cfb.create_storage("/BodyText")
+                .expect("Failed to create BodyText storage");
+
+            for (idx, text) in texts.iter().enumerate() {
+                let section_data = create_section_with_text(text);
+                let compressed = compress_data(&section_data);
+                let mut stream = cfb
+                    .create_stream(format!("/BodyText/Section{}", idx))
+                    .expect("Failed to create Section stream");
+                stream
+                    .write_all(&compressed)
+                    .expect("Failed to write Section stream");
+            }
 
             cfb.flush().expect("Failed to flush CFB");
         }
@@ -173,7 +214,7 @@ mod tests {
 
     /// zlib 압축
     fn compress_data(data: &[u8]) -> Vec<u8> {
-        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+        let mut encoder = DeflateEncoder::new(Vec::new(), Compression::new(9));
         encoder.write_all(data).unwrap();
         encoder.finish().unwrap()
     }
@@ -248,6 +289,30 @@ mod tests {
         // Assert
         assert!(result.is_ok());
         // Empty text is valid
+    }
+
+    #[test]
+    fn test_should_enforce_max_sections_limit() {
+        // Arrange
+        let hwp_data = create_minimal_hwp_with_sections(&["One", "Two"]);
+        let cursor = Cursor::new(hwp_data);
+        let limits = SectionLimits {
+            max_sections: 1,
+            ..SectionLimits::default()
+        };
+
+        // Act
+        let mut extractor = HwpTextExtractor::open(cursor)
+            .expect("Failed to open HWP")
+            .with_limits(limits);
+        let result = extractor.extract_all_text();
+
+        // Assert
+        assert!(
+            matches!(result, Err(HwpError::SizeLimitExceeded(_))),
+            "Expected SizeLimitExceeded, got: {:?}",
+            result
+        );
     }
 
     #[test]

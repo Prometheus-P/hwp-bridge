@@ -10,10 +10,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FaceName {
     /// 속성 플래그
-    /// Bit 0: 대체 글꼴 존재
-    /// Bit 1: 글꼴 유형 정보 존재
-    /// Bit 2: 기본 글꼴 존재
-    /// Bit 7: PANOSE 정보 존재
+    /// Bit 7 (0x80): 대체 글꼴 존재
+    /// Bit 6 (0x40): 글꼴 유형 정보 존재 (PANOSE)
+    /// Bit 5 (0x20): 기본 글꼴 존재
     pub properties: u8,
     /// 글꼴 이름 (예: "함초롬돋움", "맑은 고딕")
     pub name: String,
@@ -51,22 +50,22 @@ impl FaceName {
 
     /// 대체 글꼴 존재 여부
     pub fn has_substitute(&self) -> bool {
-        self.properties & 0x01 != 0
+        self.properties & 0x80 != 0
     }
 
     /// 글꼴 유형 정보 존재 여부
     pub fn has_font_type_info(&self) -> bool {
-        self.properties & 0x02 != 0
+        self.properties & 0x40 != 0
     }
 
     /// 기본 글꼴 존재 여부
     pub fn has_default(&self) -> bool {
-        self.properties & 0x04 != 0
+        self.properties & 0x20 != 0
     }
 
     /// PANOSE 정보 존재 여부
     pub fn has_panose(&self) -> bool {
-        self.properties & 0x80 != 0
+        self.properties & 0x40 != 0
     }
 
     /// 속성 플래그 설정 (빌더 패턴)
@@ -81,7 +80,7 @@ impl FaceName {
         sub_type: SubstituteFontType,
         sub_name: impl Into<String>,
     ) -> Self {
-        self.properties |= 0x01;
+        self.properties |= 0x80;
         self.substitute_type = sub_type;
         self.substitute_name = sub_name.into();
         self
@@ -89,14 +88,14 @@ impl FaceName {
 
     /// PANOSE 정보 설정
     pub fn with_panose(mut self, panose: Panose) -> Self {
-        self.properties |= 0x80;
+        self.properties |= 0x40;
         self.panose = Some(panose);
         self
     }
 
     /// 기본 글꼴 설정
     pub fn with_default_name(mut self, default_name: impl Into<String>) -> Self {
-        self.properties |= 0x04;
+        self.properties |= 0x20;
         self.default_name = default_name.into();
         self
     }
@@ -297,7 +296,7 @@ mod tests {
     fn test_should_detect_substitute_when_bit_set() {
         // Arrange
         let face = FaceName {
-            properties: 0x01,
+            properties: 0x80,
             ..Default::default()
         };
 
@@ -312,7 +311,7 @@ mod tests {
     fn test_should_detect_panose_when_bit_set() {
         // Arrange
         let face = FaceName {
-            properties: 0x80,
+            properties: 0x40,
             ..Default::default()
         };
 

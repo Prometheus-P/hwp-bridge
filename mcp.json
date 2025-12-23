@@ -25,7 +25,7 @@
     }
   },
   "tools": {
-    "hwp.inspect": {
+    "read_hwp_summary": {
       "description": "Inspect a HWP file and return its metadata.",
       "parameters": {
         "type": "object",
@@ -51,8 +51,8 @@
         }
       }
     },
-    "hwp.to_markdown": {
-      "description": "Convert a HWP file to highly structured markdown.",
+    "read_hwp_content": {
+      "description": "Convert a HWP file to semantic markdown (or plain text).",
       "parameters": {
         "type": "object",
         "properties": {
@@ -64,7 +64,7 @@
           },
           "format": {
             "type": "string",
-            "description": "The output format (e.g., 'semantic-markdown', 'plain-text').",
+            "description": "The output format (semantic-markdown | plain).",
             "default": "semantic-markdown"
           }
         },
@@ -73,6 +73,25 @@
       "return": {
         "type": "string",
         "description": "The converted markdown content."
+      }
+    },
+    "convert_to_gdocs": {
+      "description": "Convert a HWP file to Google Docs (not implemented yet).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "The HWP file to convert (e.g., 'my-doc.hwp').",
+            "x-media-types": ["application/x-hwp"]
+          }
+        },
+        "required": ["file"]
+      },
+      "return": {
+        "type": "string",
+        "description": "A Google Docs URL (not implemented)."
       }
     }
   }

@@ -6,6 +6,7 @@ members = [
     "crates/hwp-cli",
     "crates/hwp-mcp",
     "crates/hwp-wasm",
+    "crates/hwp-gui/src-tauri",
 ]
 
 # WASM build optimization

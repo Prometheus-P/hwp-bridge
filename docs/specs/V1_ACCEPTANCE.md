@@ -72,12 +72,13 @@
 - 입력 파일 크기: 25MB (`HWP_MAX_FILE_BYTES`)
 - 섹션 디컴프 최대: 64MB (`HWP_MAX_DECOMPRESSED_BYTES_PER_SECTION`)
 - 섹션 레코드 최대: 200_000 (`HWP_MAX_RECORDS_PER_SECTION`)
+- 섹션 개수 최대: 50_000 (`HWP_MAX_SECTIONS`)
 - (MCP) 처리 타임아웃: 3s~10s (환경에 따라 조정)
 
 ### 3.3 Smithery Runtime Smoke Test
 - Smithery에서 설치/실행 후:
-  - `hwp.inspect` → 정상 JSON
-  - `hwp.to_markdown` → 결과 문자열 반환
+  - `read_hwp_summary` → 정상 JSON
+  - `read_hwp_content` → 결과 문자열 반환
   - 큰 파일/폭탄 입력 → **정상적으로 SizeLimitExceeded** 반환 (서버 유지)
 
 ---

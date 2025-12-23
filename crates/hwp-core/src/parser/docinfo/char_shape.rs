@@ -3,7 +3,7 @@
 //! CharShape (글자 모양) 파서
 //!
 //! HWP DocInfo 스트림의 CharShape 레코드를 파싱합니다.
-//! 레코드 태그: 0x07 (CHAR_SHAPE)
+//! 레코드 태그: 0x15 (CHAR_SHAPE)
 
 use hwp_types::{CharShape, CharShapeAttr};
 use nom::{
@@ -35,6 +35,7 @@ pub const CHAR_SHAPE_MIN_SIZE: usize = 72;
 /// - shade_color: u32 = 4 bytes
 /// - shadow_color: u32 = 4 bytes
 /// - border_fill_id: u16 = 2 bytes (선택적, 버전에 따라)
+/// - strike_color: u32 = 4 bytes (선택적, 5.0.3.0+)
 /// - 추가 필드 (버전에 따라 가변)
 pub fn parse_char_shape(input: &[u8]) -> IResult<&[u8], CharShape> {
     // 언어별 배열 (7개씩)
@@ -56,12 +57,18 @@ pub fn parse_char_shape(input: &[u8]) -> IResult<&[u8], CharShape> {
     let (input, shade_color) = parse_colorref(input)?;
     let (input, shadow_color) = parse_colorref(input)?;
 
-    // 선택적: border_fill_id (남은 데이터가 있으면 파싱)
+    // 선택적: border_fill_id, strike_color
     let (input, border_fill_id) = if input.len() >= 2 {
         let (input, id) = le_u16(input)?;
         (input, id)
     } else {
         (input, 0)
+    };
+    let (input, strike_color) = if input.len() >= 4 {
+        let (input, color) = parse_colorref(input)?;
+        (input, Some(color))
+    } else {
+        (input, None)
     };
 
     Ok((
@@ -80,6 +87,7 @@ pub fn parse_char_shape(input: &[u8]) -> IResult<&[u8], CharShape> {
             underline_color,
             shade_color,
             shadow_color,
+            strike_color,
             border_fill_id,
         },
     ))

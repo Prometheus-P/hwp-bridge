@@ -1,0 +1,10 @@
+{
+  "capabilities": [
+    {
+      "identifier": "main-dialog-open",
+      "description": "Allow the main window to open HWP files via the dialog plugin.",
+      "windows": ["main"],
+      "permissions": ["core:default", "dialog:default", "dialog:allow-open"]
+    }
+  ]
+}

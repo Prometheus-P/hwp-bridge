@@ -11,6 +11,7 @@ use thiserror::Error;
 pub mod bindata;
 pub mod border_fill;
 pub mod control;
+pub mod docinfo;
 pub mod document;
 pub mod face_name;
 pub mod record;
@@ -24,6 +25,11 @@ pub use border_fill::{
     BorderFill, BorderLine, BorderLineType, FillGradient, FillImage, FillInfo, GradientType,
 };
 pub use control::{Control, Picture, Table, TableCell};
+pub use docinfo::{
+    Bullet, CompatibleDocument, DistributeDocData, DocInfoProperties, IdMappings, ImageBullet,
+    LayoutCompatibility, Numbering, NumberingLevel, ParaHeadInfo, ParameterItem, ParameterSet,
+    ParameterValue, StyleRecord, StyleType, TabDef, TabStop,
+};
 pub use document::{Paragraph, Section};
 pub use face_name::{FaceName, FontLanguage, Panose, SubstituteFontType};
 pub use record::RecordHeader;
@@ -31,8 +37,9 @@ pub use structured::{
     CellBlock, CellCoordinate, ContentBlock, ContentLocation, InlineStyle, OutlineItem,
     PageOrientation, PageSetup, ParagraphHeader, ParagraphType, SemanticParagraph, SemanticSpan,
     SemanticTable, SemanticTableCell, StructuredDocument, StructuredEquation, StructuredFootnote,
-    StructuredImage, StructuredMetadata, StructuredParagraph, StructuredSection, StructuredTable,
-    StructuredTableCell, StyleDefinitions, TableGridSlot, TableMergeRegion, TextAlignment, TextRun,
+    StructuredChart, StructuredImage, StructuredMetadata, StructuredParagraph, StructuredSection,
+    StructuredTable, StructuredTableCell, StyleDefinitions, TableGridSlot, TableMergeRegion,
+    TextAlignment, TextRun,
 };
 pub use style::{Alignment, CharShape, CharShapeAttr, LineSpaceType, ParaShape, ParaShapeAttr};
 pub use tags::RecordTag;

@@ -8,32 +8,75 @@
 pub mod bin_data;
 pub mod border_fill;
 pub mod char_shape;
+pub mod compatibility;
+pub mod doc_data;
+pub mod document_properties;
+pub mod distribute_doc_data;
 pub mod face_name;
+pub mod id_mappings;
+pub mod numbering;
 pub mod para_shape;
+mod para_head;
+pub mod style;
+pub mod tab_def;
+pub mod bullet;
 
 pub use bin_data::parse_bin_data;
 pub use border_fill::parse_border_fill;
 pub use char_shape::parse_char_shape;
+pub use compatibility::{parse_compatible_document, parse_layout_compatibility};
+pub use doc_data::parse_doc_data;
+pub use document_properties::parse_document_properties;
+pub use distribute_doc_data::parse_distribute_doc_data;
 pub use face_name::parse_face_name;
+pub use id_mappings::parse_id_mappings;
+pub use numbering::parse_numbering;
 pub use para_shape::parse_para_shape;
+pub use style::parse_style;
+pub use tab_def::parse_tab_def;
+pub use bullet::parse_bullet;
 
-use hwp_types::{BinData, BorderFill, CharShape, FaceName, HwpError, ParaShape};
+use hwp_types::{
+    BinData, BorderFill, Bullet, CharShape, CompatibleDocument, DistributeDocData,
+    DocInfoProperties, FaceName, HwpError, IdMappings, LayoutCompatibility, Numbering,
+    ParaShape, ParameterSet, StyleRecord, TabDef,
+};
 
 use crate::parser::record::{RecordIterator, tags};
 
 /// DocInfo 파싱 결과
 #[derive(Debug, Default)]
 pub struct DocInfo {
+    /// 문서 속성
+    pub properties: Option<DocInfoProperties>,
+    /// ID 매핑 테이블
+    pub id_mappings: Option<IdMappings>,
     /// 바이너리 데이터 목록 (이미지, OLE 등)
     pub bin_data: Vec<BinData>,
     /// 글꼴 목록 (언어별로 구분됨)
     pub face_names: Vec<FaceName>,
     /// 글자 모양 목록
     pub char_shapes: Vec<CharShape>,
+    /// 탭 정의 목록
+    pub tab_defs: Vec<TabDef>,
+    /// 번호 정의 목록
+    pub numberings: Vec<Numbering>,
+    /// 글머리표 목록
+    pub bullets: Vec<Bullet>,
     /// 문단 모양 목록
     pub para_shapes: Vec<ParaShape>,
     /// 테두리/배경 목록
     pub border_fills: Vec<BorderFill>,
+    /// 스타일 정의 목록
+    pub styles: Vec<StyleRecord>,
+    /// 문서 데이터(파라미터 셋)
+    pub doc_data: Vec<ParameterSet>,
+    /// 배포용 문서 데이터
+    pub distribute_doc_data: Option<DistributeDocData>,
+    /// 호환 문서 정보
+    pub compatible_document: Option<CompatibleDocument>,
+    /// 레이아웃 호환성 정보
+    pub layout_compatibility: Option<LayoutCompatibility>,
 }
 
 impl DocInfo {
@@ -79,6 +122,16 @@ pub fn parse_docinfo(data: &[u8]) -> Result<DocInfo, HwpError> {
         let record = record_result?;
 
         match record.header.tag_id {
+            tags::DOCUMENT_PROPERTIES => {
+                if let Ok((_, props)) = parse_document_properties(&record.data) {
+                    result.properties = Some(props);
+                }
+            }
+            tags::ID_MAPPINGS => {
+                if let Ok((_, mappings)) = parse_id_mappings(&record.data) {
+                    result.id_mappings = Some(mappings);
+                }
+            }
             tags::BIN_DATA => {
                 if let Ok((_, bin_data)) = parse_bin_data(&record.data, bin_data_id) {
                     result.bin_data.push(bin_data);
@@ -95,6 +148,21 @@ pub fn parse_docinfo(data: &[u8]) -> Result<DocInfo, HwpError> {
                     result.char_shapes.push(char_shape);
                 }
             }
+            tags::TAB_DEF => {
+                if let Ok((_, tab_def)) = parse_tab_def(&record.data) {
+                    result.tab_defs.push(tab_def);
+                }
+            }
+            tags::NUMBERING => {
+                if let Ok((_, numbering)) = parse_numbering(&record.data) {
+                    result.numberings.push(numbering);
+                }
+            }
+            tags::BULLET => {
+                if let Ok((_, bullet)) = parse_bullet(&record.data) {
+                    result.bullets.push(bullet);
+                }
+            }
             tags::PARA_SHAPE => {
                 if let Ok((_, para_shape)) = parse_para_shape(&record.data) {
                     result.para_shapes.push(para_shape);
@@ -105,8 +173,33 @@ pub fn parse_docinfo(data: &[u8]) -> Result<DocInfo, HwpError> {
                     result.border_fills.push(border_fill);
                 }
             }
+            tags::STYLE => {
+                if let Ok((_, style)) = parse_style(&record.data) {
+                    result.styles.push(style);
+                }
+            }
+            tags::DOC_DATA => {
+                if let Ok((_, sets)) = parse_doc_data(&record.data) {
+                    result.doc_data.extend(sets);
+                }
+            }
+            tags::DISTRIBUTE_DOC_DATA => {
+                if let Ok((_, data)) = parse_distribute_doc_data(&record.data) {
+                    result.distribute_doc_data = Some(data);
+                }
+            }
+            tags::COMPATIBLE_DOCUMENT => {
+                if let Ok((_, doc)) = parse_compatible_document(&record.data) {
+                    result.compatible_document = Some(doc);
+                }
+            }
+            tags::LAYOUT_COMPATIBILITY => {
+                if let Ok((_, layout)) = parse_layout_compatibility(&record.data) {
+                    result.layout_compatibility = Some(layout);
+                }
+            }
             _ => {
-                // 다른 태그는 무시 (ID_MAPPINGS, STYLE 등)
+                // 다른 태그는 무시
             }
         }
     }

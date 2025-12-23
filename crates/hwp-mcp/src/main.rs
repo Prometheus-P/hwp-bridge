@@ -42,6 +42,7 @@ pub(crate) struct RuntimeLimits {
     pub max_file_bytes: usize,
     pub max_decompressed_bytes_per_section: usize,
     pub max_records_per_section: usize,
+    pub max_sections: usize,
 }
 
 tokio::task_local! {
@@ -61,6 +62,7 @@ fn default_limits_from_env() -> RuntimeLimits {
             .unwrap_or(DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION),
         max_records_per_section: env_usize("HWP_MAX_RECORDS_PER_SECTION")
             .unwrap_or(DEFAULT_MAX_RECORDS_PER_SECTION),
+        max_sections: env_usize("HWP_MAX_SECTIONS").unwrap_or(50_000),
     }
 }
 
@@ -68,13 +70,6 @@ pub(crate) fn current_limits() -> RuntimeLimits {
     RUNTIME_LIMITS
         .try_with(|l| *l)
         .unwrap_or_else(|_| default_limits_from_env())
-}
-
-pub(crate) async fn scope_limits<F, R>(limits: RuntimeLimits, fut: F) -> R
-where
-    F: std::future::Future<Output = R>,
-{
-    RUNTIME_LIMITS.scope(limits, fut).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -135,10 +130,11 @@ struct InspectHwpResult {
 
 fn current_section_limits() -> SectionLimits {
     let l = current_limits();
-    let mut limits = SectionLimits::default();
-    limits.max_decompressed_bytes = l.max_decompressed_bytes_per_section;
-    limits.max_records = l.max_records_per_section;
-    limits
+    SectionLimits {
+        max_decompressed_bytes: l.max_decompressed_bytes_per_section,
+        max_records: l.max_records_per_section,
+        max_sections: l.max_sections,
+    }
 }
 
 fn default_format() -> String {
@@ -153,10 +149,9 @@ impl HwpServerHandler {
     fn new() -> Self {
         Self {
             tools: vec![
-                inspect_tool(),
-                convert_tool(),
-                extract_tool(),
-                to_json_tool(),
+                read_hwp_summary_tool(),
+                read_hwp_content_tool(),
+                convert_to_gdocs_tool(),
             ],
         }
     }
@@ -210,7 +205,7 @@ impl ServerHandler for HwpServerHandler {
 impl HwpServerHandler {
     async fn handle_tool_call(&self, request: ToolCallRequest) -> Result<Value, Error> {
         match request.name.as_str() {
-            "hwp.inspect" => {
+            "read_hwp_summary" | "hwp.inspect" => {
                 let args: InspectArgs = serde_json::from_value(request.arguments)?;
                 let (name, bytes) = read_tool_file_limited(&args.file)?;
                 let (doc, header) =
@@ -246,7 +241,7 @@ impl HwpServerHandler {
                 );
                 Ok(tool_response(summary, Some(serde_json::to_value(result)?)))
             }
-            "hwp.to_markdown" => {
+            "read_hwp_content" | "hwp.to_markdown" => {
                 let args: ConvertArgs = serde_json::from_value(request.arguments)?;
                 let (name, bytes) = read_tool_file_limited(&args.file)?;
                 let (doc, _header) =
@@ -286,6 +281,11 @@ impl HwpServerHandler {
                 };
                 Ok(tool_response(json_text, Some(serde_json::to_value(doc)?)))
             }
+            "convert_to_gdocs" => Err(Error::protocol(
+                ErrorCode::InternalError,
+                "convert_to_gdocs is not implemented yet. Use read_hwp_content for markdown export."
+                    .to_string(),
+            )),
 
             other => Err(Error::protocol(
                 ErrorCode::MethodNotFound,
@@ -295,9 +295,9 @@ impl HwpServerHandler {
     }
 }
 
-fn inspect_tool() -> Tool {
+fn read_hwp_summary_tool() -> Tool {
     Tool {
-        name: "hwp.inspect".to_string(),
+        name: "read_hwp_summary".to_string(),
         description: "Inspect a HWP file and return document metadata and stats.".to_string(),
         input_schema: Some(ToolSchema {
             properties: Some(json!({
@@ -327,9 +327,9 @@ fn inspect_tool() -> Tool {
     }
 }
 
-fn convert_tool() -> Tool {
+fn read_hwp_content_tool() -> Tool {
     Tool {
-        name: "hwp.to_markdown".to_string(),
+        name: "read_hwp_content".to_string(),
         description: "Convert HWP content to semantic markdown preserving nested tables."
             .to_string(),
         input_schema: Some(ToolSchema {
@@ -355,11 +355,42 @@ fn convert_tool() -> Tool {
             required: Some(vec!["file".to_string()]),
         }),
         annotations: Some(ToolAnnotations {
-            title: Some("Convert HWP".to_string()),
-            read_only_hint: Some(false),
+            title: Some("Read HWP Content".to_string()),
+            read_only_hint: Some(true),
             destructive_hint: Some(false),
             idempotent_hint: Some(true),
             open_world_hint: None,
+        }),
+    }
+}
+
+fn convert_to_gdocs_tool() -> Tool {
+    Tool {
+        name: "convert_to_gdocs".to_string(),
+        description: "Convert HWP to Google Docs (not implemented yet).".to_string(),
+        input_schema: Some(ToolSchema {
+            properties: Some(json!({
+                "file": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "content": {"type": "string", "contentEncoding": "base64"},
+                        "path": {"type": "string"}
+                    },
+                    "oneOf": [
+                      {"required": ["name", "content"]},
+                      {"required": ["path"]}
+                    ]
+                }
+            })),
+            required: Some(vec!["file".to_string()]),
+        }),
+        annotations: Some(ToolAnnotations {
+            title: Some("Convert to Google Docs".to_string()),
+            read_only_hint: Some(false),
+            destructive_hint: Some(false),
+            idempotent_hint: Some(false),
+            open_world_hint: Some(true),
         }),
     }
 }
@@ -372,78 +403,15 @@ fn tool_response(summary: String, structured: Option<Value>) -> Value {
     serde_json::to_value(result).expect("tool result serializable")
 }
 
-fn extract_tool() -> Tool {
-    Tool {
-        name: "hwp.extract".to_string(),
-        description: "Extract plain text from a HWP file (fast path).".to_string(),
-        input_schema: Some(ToolSchema {
-            properties: Some(json!({
-                "file": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "content": {"type": "string", "contentEncoding": "base64"},
-                        "path": {"type": "string"}
-                    },
-                    "oneOf": [
-                      {"required": ["name", "content"]},
-                      {"required": ["path"]}
-                    ]
-                }
-            })),
-            required: Some(vec!["file".to_string()]),
-        }),
-        annotations: Some(ToolAnnotations {
-            title: Some("Extract HWP Text".to_string()),
-            read_only_hint: Some(false),
-            destructive_hint: Some(false),
-            idempotent_hint: Some(true),
-            open_world_hint: None,
-        }),
-    }
-}
-
-fn to_json_tool() -> Tool {
-    Tool {
-        name: "hwp.to_json".to_string(),
-        description: "Convert a HWP file into structured JSON (text output + structured payload)."
-            .to_string(),
-        input_schema: Some(ToolSchema {
-            properties: Some(json!({
-                "file": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "content": {"type": "string", "contentEncoding": "base64"},
-                        "path": {"type": "string"}
-                    },
-                    "oneOf": [
-                      {"required": ["name", "content"]},
-                      {"required": ["path"]}
-                    ]
-                },
-                "pretty": {
-                    "type": "boolean",
-                    "default": false
-                }
-            })),
-            required: Some(vec!["file".to_string()]),
-        }),
-        annotations: Some(ToolAnnotations {
-            title: Some("Convert HWP to JSON".to_string()),
-            read_only_hint: Some(false),
-            destructive_hint: Some(false),
-            idempotent_hint: Some(true),
-            open_world_hint: None,
-        }),
-    }
-}
-
 fn allow_path_input() -> bool {
     std::env::var("HWP_ALLOW_PATH_INPUT")
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
+        || std::env::var("HWP_ALLOW_LOCAL_FILES")
+            .ok()
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
 }
 
 fn path_basedir() -> Option<std::path::PathBuf> {
@@ -464,7 +432,8 @@ fn read_tool_file(file: &ToolFile) -> Result<(String, Vec<u8>), Error> {
             if !allow_path_input() {
                 return Err(Error::protocol(
                     ErrorCode::InvalidParams,
-                    "path input is disabled (set HWP_ALLOW_PATH_INPUT=1)".to_string(),
+                    "path input is disabled (set HWP_ALLOW_PATH_INPUT=1 or HWP_ALLOW_LOCAL_FILES=1)"
+                        .to_string(),
                 ));
             }
             let p = std::path::PathBuf::from(path);
@@ -549,7 +518,7 @@ fn default_created_at() -> String {
 fn parse_hwp(data: &[u8], file_name: &str) -> Result<(StructuredDocument, FileHeader)> {
     let header = {
         let cursor = std::io::Cursor::new(data);
-        let mut ole = HwpOleFile::open(cursor).context("failed to open OLE container")?;
+        let ole = HwpOleFile::open(cursor).context("failed to open OLE container")?;
         ole.header().clone()
     };
 

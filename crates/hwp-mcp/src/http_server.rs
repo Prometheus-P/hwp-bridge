@@ -112,8 +112,6 @@ struct AppState {
 
 #[derive(Clone)]
 struct McpSession {
-    created_at: SystemTime,
-    log_tx: mpsc::UnboundedSender<ServerLogEvent>,
     protocol_version: String,
     // Very small replay buffer for resumable SSE (best-effort).
     replay: Arc<RwLock<VecDeque<(u64, String)>>>,
@@ -213,23 +211,9 @@ fn json_pointer_for(key_path: &str) -> String {
     out
 }
 
-fn get_str_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<String> {
-    if let Some(v) = query.get(key) {
-        if !v.trim().is_empty() {
-            return Some(v.trim().to_string());
-        }
-    }
-    let cfg = cfg.as_ref()?;
-    let ptr = json_pointer_for(key);
-    cfg.pointer(&ptr)
-        .and_then(|v| v.as_str().map(|s| s.to_string()))
-}
-
 fn get_usize_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<usize> {
-    if let Some(v) = query.get(key) {
-        if let Ok(n) = v.trim().parse::<usize>() {
-            return Some(n);
-        }
+    if let Some(v) = query.get(key) && let Ok(n) = v.trim().parse::<usize>() {
+        return Some(n);
     }
     let cfg = cfg.as_ref()?;
     let ptr = json_pointer_for(key);
@@ -333,34 +317,36 @@ fn parse_allowed_origins(query: &QueryMap) -> AllowedOrigins {
     AllowedOrigins::from_env()
 }
 
-fn validate_origin(headers: &HeaderMap, allowed: &AllowedOrigins) -> Result<(), Response> {
+fn validate_origin(headers: &HeaderMap, allowed: &AllowedOrigins) -> Result<(), Box<Response>> {
     let Some(origin) = headers.get(ORIGIN) else {
         // Many non-browser clients won't send Origin.
         return Ok(());
     };
 
     let Ok(origin_str) = origin.to_str() else {
-        return Err((StatusCode::FORBIDDEN, "Invalid Origin header").into_response());
+        return Err(Box::new(
+            (StatusCode::FORBIDDEN, "Invalid Origin header").into_response(),
+        ));
     };
 
     if allowed.matches(origin_str) {
         Ok(())
     } else {
-        Err((
-            StatusCode::FORBIDDEN,
-            format!("Origin not allowed: {origin_str}"),
-        )
-            .into_response())
+        Err(Box::new(
+            (
+                StatusCode::FORBIDDEN,
+                format!("Origin not allowed: {origin_str}"),
+            )
+                .into_response(),
+        ))
     }
 }
 
 fn header_get_ci(headers: &HeaderMap, name: &str) -> Option<String> {
     // Case-insensitive lookup by iterating.
     for (k, v) in headers.iter() {
-        if k.as_str().eq_ignore_ascii_case(name) {
-            if let Ok(s) = v.to_str() {
-                return Some(s.to_string());
-            }
+        if k.as_str().eq_ignore_ascii_case(name) && let Ok(s) = v.to_str() {
+            return Some(s.to_string());
         }
     }
     None
@@ -380,10 +366,8 @@ fn add_mcp_headers(resp: &mut Response, protocol_version: &str, session_id: Opti
     if let Ok(v) = HeaderValue::from_str(protocol_version) {
         headers.insert("Mcp-Protocol-Version", v);
     }
-    if let Some(sid) = session_id {
-        if let Ok(v) = HeaderValue::from_str(sid) {
-            headers.insert("Mcp-Session-Id", v);
-        }
+    if let Some(sid) = session_id && let Ok(v) = HeaderValue::from_str(sid) {
+        headers.insert("Mcp-Session-Id", v);
     }
 }
 
@@ -442,7 +426,7 @@ async fn health() -> impl IntoResponse {
     (StatusCode::OK, Json(body))
 }
 
-fn require_sse_accept(headers: &HeaderMap) -> Result<(), Response> {
+fn require_sse_accept(headers: &HeaderMap) -> Result<(), Box<Response>> {
     let accept = headers
         .get(ACCEPT)
         .and_then(|v| v.to_str().ok())
@@ -451,11 +435,13 @@ fn require_sse_accept(headers: &HeaderMap) -> Result<(), Response> {
     if accept_has(accept, "text/event-stream") {
         Ok(())
     } else {
-        Err((StatusCode::BAD_REQUEST, "Missing Accept: text/event-stream").into_response())
+        Err(Box::new(
+            (StatusCode::BAD_REQUEST, "Missing Accept: text/event-stream").into_response(),
+        ))
     }
 }
 
-fn ensure_json_content_type(headers: &HeaderMap) -> Result<(), Response> {
+fn ensure_json_content_type(headers: &HeaderMap) -> Result<(), Box<Response>> {
     let content_type = headers
         .get(CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
@@ -468,15 +454,17 @@ fn ensure_json_content_type(headers: &HeaderMap) -> Result<(), Response> {
     {
         Ok(())
     } else {
-        Err((
-            StatusCode::BAD_REQUEST,
-            "Content-Type must be application/json",
-        )
-            .into_response())
+        Err(Box::new(
+            (
+                StatusCode::BAD_REQUEST,
+                "Content-Type must be application/json",
+            )
+                .into_response(),
+        ))
     }
 }
 
-fn ensure_post_accept(headers: &HeaderMap) -> Result<(), Response> {
+fn ensure_post_accept(headers: &HeaderMap) -> Result<(), Box<Response>> {
     let accept = headers
         .get(ACCEPT)
         .and_then(|v| v.to_str().ok())
@@ -486,7 +474,9 @@ fn ensure_post_accept(headers: &HeaderMap) -> Result<(), Response> {
     if accept_has(accept, "application/json") {
         Ok(())
     } else {
-        Err((StatusCode::BAD_REQUEST, "Missing Accept: application/json").into_response())
+        Err(Box::new(
+            (StatusCode::BAD_REQUEST, "Missing Accept: application/json").into_response(),
+        ))
     }
 }
 
@@ -497,11 +487,11 @@ async fn mcp_get(
 ) -> Response {
     let allowed = parse_allowed_origins(&query);
     if let Err(resp) = validate_origin(&headers, &allowed) {
-        return resp;
+        return *resp;
     }
 
     if let Err(resp) = require_sse_accept(&headers) {
-        return resp;
+        return *resp;
     }
 
     // Optional session (to resume logs).
@@ -599,7 +589,7 @@ async fn mcp_delete(
 ) -> Response {
     let allowed = parse_allowed_origins(&query);
     if let Err(resp) = validate_origin(&headers, &allowed) {
-        return resp;
+        return *resp;
     }
 
     let sid = header_get_ci(&headers, "Mcp-Session-Id").or_else(|| query.get("sid").cloned());
@@ -620,18 +610,13 @@ async fn mcp_delete(
     }
 }
 
-#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, Default, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum PostMode {
+    #[default]
     Auto,
     Json,
     Sse,
-}
-
-impl Default for PostMode {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 async fn mcp_post(
@@ -642,15 +627,15 @@ async fn mcp_post(
 ) -> Response {
     let allowed = parse_allowed_origins(&query);
     if let Err(resp) = validate_origin(&headers, &allowed) {
-        return resp;
+        return *resp;
     }
 
     if let Err(resp) = ensure_json_content_type(&headers) {
-        return resp;
+        return *resp;
     }
 
     if let Err(resp) = ensure_post_accept(&headers) {
-        return resp;
+        return *resp;
     }
 
     let limits = parse_limits(&query);
@@ -667,13 +652,10 @@ async fn mcp_post(
         header_get_ci(&headers, "Mcp-Session-Id").or_else(|| query.get("sid").cloned());
 
     // Determine request list
-    let mut messages: Vec<JsonRpcMessage> = vec![];
     let is_batch = parsed_json.is_array();
-
-    if is_batch {
-        // Will validate against protocol later.
+    let messages: Vec<JsonRpcMessage> = if is_batch {
         match serde_json::from_value::<Vec<JsonRpcMessage>>(parsed_json.clone()) {
-            Ok(v) => messages = v,
+            Ok(v) => v,
             Err(e) => {
                 return (
                     StatusCode::BAD_REQUEST,
@@ -684,7 +666,7 @@ async fn mcp_post(
         }
     } else {
         match serde_json::from_value::<JsonRpcMessage>(parsed_json.clone()) {
-            Ok(v) => messages = vec![v],
+            Ok(v) => vec![v],
             Err(e) => {
                 return (
                     StatusCode::BAD_REQUEST,
@@ -693,7 +675,7 @@ async fn mcp_post(
                     .into_response();
             }
         }
-    }
+    };
 
     // Figure out if this is initialize.
     let is_initialize = messages.iter().any(|m| match m {
@@ -706,9 +688,7 @@ async fn mcp_post(
         .or_else(|| header_get_ci(&headers, "MCP-Protocol-Version"));
 
     // Determine effective protocol for this request.
-    let mut effective_protocol = PROTOCOL_V2025_06_18.to_string();
-
-    if is_initialize {
+    let effective_protocol = if is_initialize {
         // Parse from initialize params if present.
         let requested = messages.iter().find_map(|m| match m {
             JsonRpcMessage::Request(req) if req.method == "initialize" => req
@@ -736,34 +716,32 @@ async fn mcp_post(
             add_mcp_headers(&mut resp, PROTOCOL_V2025_06_18, None);
             return resp;
         }
-        effective_protocol = requested;
+        requested
     } else {
         // Use session protocol if exists; else fall back to header; else assume 03-26.
         if let Some(sid) = session_id.as_deref() {
             let sessions = state.sessions.read().await;
             if let Some(sess) = sessions.get(sid) {
-                effective_protocol = sess.protocol_version.clone();
+                sess.protocol_version.clone()
             } else {
                 return (StatusCode::NOT_FOUND, "Session not found").into_response();
             }
         } else if let Some(h) = header_proto.clone() {
-            effective_protocol = h;
+            h
         } else {
-            effective_protocol = PROTOCOL_V2025_03_26.to_string();
+            PROTOCOL_V2025_03_26.to_string()
         }
+    };
 
-        // Validate header protocol if present.
-        if let Some(h) = header_proto {
-            if h != effective_protocol {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    format!(
-                        "Mcp-Protocol-Version mismatch. Session expects {effective_protocol}, got {h}"
-                    ),
-                )
-                    .into_response();
-            }
-        }
+    // Validate header protocol if present.
+    if !is_initialize && let Some(h) = header_proto && h != effective_protocol {
+        return (
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Mcp-Protocol-Version mismatch. Session expects {effective_protocol}, got {h}"
+            ),
+        )
+            .into_response();
     }
 
     // Enforce batch rule for newer protocol.
@@ -784,14 +762,11 @@ async fn mcp_post(
     // Create session on initialize and assign protocol.
     let sid_for_request = if is_initialize {
         let sid = Uuid::new_v4().to_string();
-        let (log_tx, _log_rx) = mpsc::unbounded_channel::<ServerLogEvent>();
-        let sess = McpSession {
-            created_at: SystemTime::now(),
-            log_tx,
-            protocol_version: effective_protocol.clone(),
-            replay: Arc::new(RwLock::new(VecDeque::with_capacity(128))),
-            next_event_id: Arc::new(RwLock::new(0)),
-        };
+    let sess = McpSession {
+        protocol_version: effective_protocol.clone(),
+        replay: Arc::new(RwLock::new(VecDeque::with_capacity(128))),
+        next_event_id: Arc::new(RwLock::new(0)),
+    };
         let mut sessions = state.sessions.write().await;
         sessions.insert(sid.clone(), sess);
         Some(sid)
@@ -838,7 +813,7 @@ async fn mcp_post(
                     continue;
                 };
 
-                match handle_rpc_request(&state, &sid, req, limits.clone()).await {
+                match handle_rpc_request(&state, sid, req, limits.clone()).await {
                     Ok(Some(resp)) => out.push(resp),
                     Ok(None) => {}
                     Err(err_resp) => out.push(err_resp),

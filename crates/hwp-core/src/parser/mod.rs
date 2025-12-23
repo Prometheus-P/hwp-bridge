@@ -1,6 +1,9 @@
 // crates/hwp-core/src/parser/mod.rs
 
 pub mod bodytext;
+pub mod chart;
+mod chart_schema;
+mod chart_types;
 pub mod docinfo;
 mod document;
 mod header;
@@ -22,8 +25,8 @@ pub use record_nom::{
     find_first_record, parse_record, parse_record_header, parse_records,
 };
 pub use section::{
-    DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION, DEFAULT_MAX_RECORDS_PER_SECTION, SectionLimits,
-    decompress_section, decompress_section_with_limits, extract_text_from_para_text,
-    parse_section_records, parse_section_records_with_options,
+    DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION, DEFAULT_MAX_RECORDS_PER_SECTION,
+    DEFAULT_MAX_SECTIONS, SectionLimits, decompress_section, decompress_section_with_limits,
+    extract_text_from_para_text, parse_section_records, parse_section_records_with_options,
 };
 pub use summary::{HwpSummaryInfo, parse_summary_info};

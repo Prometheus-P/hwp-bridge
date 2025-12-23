@@ -140,33 +140,33 @@ fn test_should_parse_complete_docinfo_stream() {
     // Arrange: 여러 타입의 레코드를 포함한 DocInfo 스트림
     let mut stream = Vec::new();
 
-    // BinData 레코드 (tag 0x02)
-    stream.extend(create_record(0x02, 0, &create_bin_data_data(0x01, "png")));
+    // BinData 레코드 (tag 0x12)
+    stream.extend(create_record(0x12, 0, &create_bin_data_data(0x01, "png")));
 
-    // FaceName 레코드들 (tag 0x03)
-    stream.extend(create_record(0x03, 0, &create_face_name_data("맑은 고딕")));
-    stream.extend(create_record(0x03, 0, &create_face_name_data("Arial")));
+    // FaceName 레코드들 (tag 0x13)
+    stream.extend(create_record(0x13, 0, &create_face_name_data("맑은 고딕")));
+    stream.extend(create_record(0x13, 0, &create_face_name_data("Arial")));
 
-    // CharShape 레코드들 (tag 0x07)
+    // CharShape 레코드들 (tag 0x15)
     stream.extend(create_record(
-        0x07,
+        0x15,
         0,
         &create_char_shape_data(1000, false, false),
     )); // 10pt, normal
     stream.extend(create_record(
-        0x07,
+        0x15,
         0,
         &create_char_shape_data(1200, true, false),
     )); // 12pt, bold
     stream.extend(create_record(
-        0x07,
+        0x15,
         0,
         &create_char_shape_data(1000, false, true),
     )); // 10pt, italic
 
-    // ParaShape 레코드 (tag 0x09)
+    // ParaShape 레코드 (tag 0x19)
     stream.extend(create_record(
-        0x09,
+        0x19,
         0,
         &create_para_shape_data(1, 160), // Left, 160%
     ));
@@ -203,7 +203,7 @@ fn test_should_access_items_by_index() {
     let mut stream = Vec::new();
     for i in 0..5 {
         stream.extend(create_record(
-            0x03,
+            0x13,
             0,
             &create_face_name_data(&format!("Font{}", i)),
         ));
@@ -239,10 +239,10 @@ fn test_should_handle_empty_stream_gracefully() {
 fn test_should_skip_unsupported_tags() {
     // Arrange: 알 수 없는 태그 포함
     let mut stream = Vec::new();
-    stream.extend(create_record(0x03, 0, &create_face_name_data("TestFont")));
+    stream.extend(create_record(0x13, 0, &create_face_name_data("TestFont")));
     stream.extend(create_record(0xFF, 0, &[1, 2, 3, 4])); // 알 수 없는 태그
     stream.extend(create_record(
-        0x03,
+        0x13,
         0,
         &create_face_name_data("AnotherFont"),
     ));

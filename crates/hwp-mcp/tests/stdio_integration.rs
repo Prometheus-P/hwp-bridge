@@ -435,7 +435,7 @@ fn test_should_reject_hwpx_by_magic_bytes() {
     let _ = initialize_server(&mut stdin, &mut reader);
 
     // Act: HWPX 매직 바이트가 있는 파일
-    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &HWPX_MAGIC);
+    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, HWPX_MAGIC);
 
     let request = make_tools_call_request(
         2,

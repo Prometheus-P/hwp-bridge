@@ -1,0 +1,22 @@
+# CODEOWNERS - HwpBridge
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for all files
+* @Prometheus-P
+
+# Core library - requires careful review
+/crates/hwp-core/ @Prometheus-P
+/crates/hwp-types/ @Prometheus-P
+
+# Application crates
+/crates/hwp-cli/ @Prometheus-P
+/crates/hwp-mcp/ @Prometheus-P
+
+# Documentation
+/docs/ @Prometheus-P
+*.md @Prometheus-P
+
+# CI/CD and configuration
+/.github/ @Prometheus-P
+/Cargo.toml @Prometheus-P
+/Cargo.lock @Prometheus-P

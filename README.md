@@ -96,8 +96,14 @@ CI automation is provided in `.github/workflows/v1-gate.yml` (requires `CORPUS_Z
 
 ## License
 
-- Open-source core: **Apache-2.0** (see `LICENSE`)
-- Commercial add-ons: see `COMMERCIAL_LICENSE.md`
+Copyright (c) 2025 HwpBridge. All Rights Reserved.
+
+This software is **proprietary**. See `LICENSE` for terms.
+
+- **Personal Use**: Free for evaluation and non-commercial use
+- **Commercial Use**: Requires a license - see `COMMERCIAL_LICENSE.md`
+
+Contact: parkdavid31@gmail.com
 
 
 ## Limitations

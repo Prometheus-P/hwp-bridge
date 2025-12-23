@@ -1,44 +1,105 @@
-# Monetization Playbook (for HwpBridge)
+# Monetization Strategy (HwpBridge)
 
-You said you want **reputation first**, but also a clear path to revenue.
-Here’s the cleanest path that doesn't ruin adoption.
+Copyright (c) 2025 HwpBridge. All Rights Reserved.
 
-## 1) Reputation engine (free, loud, measurable)
-- Publish **benchmarks**: speed, fidelity metrics, crash rate, encrypted-file detection.
-- Ship a **Smithery MCP** so people can try it in Claude Desktop in 30 seconds.
-- Maintain a public **format coverage matrix** (what you parse perfectly vs partially).
+---
 
-Deliverables to keep updating:
-- `docs/BENCHMARKS.md`
-- `docs/FORMAT_SUPPORT.md`
-- `docs/SECURITY.md`
+## Business Model: Source-Available with Commercial Licensing
 
-## 2) Revenue that doesn't kill open-source
-### A. Open-core (recommended)
-- Core stays Apache-2.0.
-- Sell **Pro add-ons** as a separate repo/package under a commercial license.
+### License Tiers
 
-### B. Paid support / SLA
-- “We keep your pipeline running” money.
-- Works well for enterprises that hate risk.
+| Tier | Use Case | Price |
+|------|----------|-------|
+| **Personal** | Evaluation, learning, non-commercial | Free |
+| **Startup** | Small teams (up to 5 devs) | Contact |
+| **Enterprise** | Large organizations, OEM, redistribution | Contact |
 
-### C. Hosted API
-- You host conversion. Charge by documents/month.
-- Best margin, but you now own infra + compliance.
+### Revenue Streams
 
-## 3) Don't do this (it backfires)
-- “Business use requires payment” on an Apache/MIT repo.
-  - It’s not enforceable unless you change the license.
-  - Adoption collapses, and your reputation takes a hit.
+#### 1. Commercial Licenses
 
-## 4) Pricing anchors (starter numbers)
-- Pro add-on license: $299–$999/month per company (usage-based), or $5k–$50k/year
-- SLA/support: $2k–$15k/month depending on response time
-- Hosted API: $0.01–$0.05 per page equivalent (or per doc tiers)
+Primary revenue source:
+- Per-seat or per-organization licensing
+- Annual subscriptions
+- Volume discounts for enterprises
 
-## 5) The real wedge (why people pay)
-They pay for **fidelity guarantees**, **compliance**, and **time-to-integrate**.
-Make those measurable:
-- Fidelity score regression (golden fixtures)
-- Deterministic outputs
-- Audit logs + retention controls
+#### 2. Premium Features
+
+Available for commercial licensees:
+- High-fidelity HWP to DOCX/PDF conversion
+- Batch processing API with rate limits
+- Font and image extraction pipelines
+- Enterprise integrations (SSO, DLP, audit logs)
+
+#### 3. Support & SLA
+
+- Priority email support
+- Guaranteed response times
+- Custom feature development
+- Training and onboarding
+
+#### 4. Hosted API (Future)
+
+- Managed conversion service
+- Pay-per-document pricing
+- No infrastructure management required
+
+---
+
+## Reputation Building
+
+### Public Metrics
+
+Maintain and publish:
+- `docs/BENCHMARKS.md` - Performance benchmarks
+- `docs/FORMAT_SUPPORT.md` - Feature coverage matrix
+- `docs/SECURITY.md` - Security practices
+
+### MCP Integration
+
+- Smithery deployment for easy Claude Desktop integration
+- Demonstrates real-world utility
+- Drives awareness and adoption
+
+---
+
+## Pricing Anchors
+
+### Commercial Licenses
+
+| Tier | Annual Price Range |
+|------|-------------------|
+| Startup | $3,000 - $10,000 |
+| Enterprise | $15,000 - $50,000+ |
+| OEM/Redistribution | Custom |
+
+### Support SLA
+
+| Level | Monthly | Response Time |
+|-------|---------|---------------|
+| Standard | $500 | 48 hours |
+| Priority | $2,000 | 8 hours |
+| Enterprise | $5,000+ | 2 hours |
+
+### Hosted API (Future)
+
+| Volume | Per Document |
+|--------|--------------|
+| Up to 1,000/mo | $0.05 |
+| 1,000 - 10,000/mo | $0.03 |
+| 10,000+/mo | Custom |
+
+---
+
+## Why Customers Pay
+
+1. **Fidelity Guarantees** - Accurate conversion with regression testing
+2. **Compliance** - Audit logs, retention controls, security certifications
+3. **Time-to-Integrate** - Ready-to-use APIs and documentation
+4. **Support** - Direct access to developers for issues
+
+---
+
+## Contact
+
+For licensing inquiries: parkdavid31@gmail.com

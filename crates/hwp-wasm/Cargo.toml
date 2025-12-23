@@ -3,7 +3,7 @@ name = "hwp-wasm"
 version = "0.1.0"
 edition = "2024"
 description = "WebAssembly bindings for HWP document parsing"
-license = "Apache-2.0"
+license = "LicenseRef-Proprietary"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -7,39 +7,39 @@
 
 pub mod bin_data;
 pub mod border_fill;
+pub mod bullet;
 pub mod char_shape;
 pub mod compatibility;
+pub mod distribute_doc_data;
 pub mod doc_data;
 pub mod document_properties;
-pub mod distribute_doc_data;
 pub mod face_name;
 pub mod id_mappings;
 pub mod numbering;
-pub mod para_shape;
 mod para_head;
+pub mod para_shape;
 pub mod style;
 pub mod tab_def;
-pub mod bullet;
 
 pub use bin_data::parse_bin_data;
 pub use border_fill::parse_border_fill;
+pub use bullet::parse_bullet;
 pub use char_shape::parse_char_shape;
 pub use compatibility::{parse_compatible_document, parse_layout_compatibility};
+pub use distribute_doc_data::parse_distribute_doc_data;
 pub use doc_data::parse_doc_data;
 pub use document_properties::parse_document_properties;
-pub use distribute_doc_data::parse_distribute_doc_data;
 pub use face_name::parse_face_name;
 pub use id_mappings::parse_id_mappings;
 pub use numbering::parse_numbering;
 pub use para_shape::parse_para_shape;
 pub use style::parse_style;
 pub use tab_def::parse_tab_def;
-pub use bullet::parse_bullet;
 
 use hwp_types::{
     BinData, BorderFill, Bullet, CharShape, CompatibleDocument, DistributeDocData,
-    DocInfoProperties, FaceName, HwpError, IdMappings, LayoutCompatibility, Numbering,
-    ParaShape, ParameterSet, StyleRecord, TabDef,
+    DocInfoProperties, FaceName, HwpError, IdMappings, LayoutCompatibility, Numbering, ParaShape,
+    ParameterSet, StyleRecord, TabDef,
 };
 
 use crate::parser::record::{RecordIterator, tags};

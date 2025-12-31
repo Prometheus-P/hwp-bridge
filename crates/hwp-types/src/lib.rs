@@ -36,10 +36,10 @@ pub use record::RecordHeader;
 pub use structured::{
     CellBlock, CellCoordinate, ContentBlock, ContentLocation, InlineStyle, OutlineItem,
     PageOrientation, PageSetup, ParagraphHeader, ParagraphType, SemanticParagraph, SemanticSpan,
-    SemanticTable, SemanticTableCell, StructuredDocument, StructuredEquation, StructuredFootnote,
-    StructuredChart, StructuredImage, StructuredMetadata, StructuredParagraph, StructuredSection,
-    StructuredTable, StructuredTableCell, StyleDefinitions, TableGridSlot, TableMergeRegion,
-    TextAlignment, TextRun,
+    SemanticTable, SemanticTableCell, StructuredChart, StructuredDocument, StructuredEquation,
+    StructuredFootnote, StructuredImage, StructuredMetadata, StructuredParagraph,
+    StructuredSection, StructuredTable, StructuredTableCell, StyleDefinitions, TableGridSlot,
+    TableMergeRegion, TextAlignment, TextRun,
 };
 pub use style::{Alignment, CharShape, CharShapeAttr, LineSpaceType, ParaShape, ParaShapeAttr};
 pub use tags::RecordTag;

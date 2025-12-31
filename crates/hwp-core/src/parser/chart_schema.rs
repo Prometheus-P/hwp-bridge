@@ -73,9 +73,7 @@ const CATEGORYSCALE_FIELDS: &[ChartField] = &[
     ChartField::new("LabelTick", ChartFieldKind::Boolean),
 ];
 
-const CONTOUR_FIELDS: &[ChartField] = &[
-    ChartField::new("DisplayType", ChartFieldKind::Integer),
-];
+const CONTOUR_FIELDS: &[ChartField] = &[ChartField::new("DisplayType", ChartFieldKind::Integer)];
 
 const CONTOURGRADIENT_FIELDS: &[ChartField] = &[
     ChartField::new("FromBrushColor", ChartFieldKind::Object("VtColor")),

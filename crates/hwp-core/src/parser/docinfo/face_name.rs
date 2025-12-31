@@ -27,8 +27,7 @@ pub fn parse_face_name(input: &[u8]) -> IResult<&[u8], FaceName> {
     let (input, name) = parse_utf16le_string(input)?;
 
     // 대체 글꼴 (선택적: bit 7)
-    let (input, substitute_type, substitute_name) =
-        if properties & 0x80 != 0 && !input.is_empty() {
+    let (input, substitute_type, substitute_name) = if properties & 0x80 != 0 && !input.is_empty() {
         let (input, sub_type_raw) = le_u8(input)?;
         let sub_type = SubstituteFontType::from_u8(sub_type_raw);
 

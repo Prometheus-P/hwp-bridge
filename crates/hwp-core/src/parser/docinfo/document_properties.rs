@@ -3,7 +3,10 @@
 //! Document properties (HWPTAG_DOCUMENT_PROPERTIES) parser.
 
 use hwp_types::DocInfoProperties;
-use nom::{IResult, number::complete::{le_u16, le_u32}};
+use nom::{
+    IResult,
+    number::complete::{le_u16, le_u32},
+};
 
 /// Parse document properties record.
 pub fn parse_document_properties(input: &[u8]) -> IResult<&[u8], DocInfoProperties> {

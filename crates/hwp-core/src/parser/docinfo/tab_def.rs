@@ -5,7 +5,7 @@
 use hwp_types::{TabDef, TabStop};
 use nom::{
     IResult,
-    number::complete::{le_i32, le_u16, le_u32, le_u8},
+    number::complete::{le_i32, le_u8, le_u16, le_u32},
 };
 
 /// Parse a tab definition record.

@@ -5,8 +5,8 @@ use hwp_types::{FileHeader, HwpError};
 use std::io::{Read, Seek};
 
 use super::header::parse_file_header;
-use super::section::decompress_section_with_limits;
 use super::section::DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION;
+use super::section::decompress_section_with_limits;
 use super::summary::{HwpSummaryInfo, parse_summary_info};
 
 /// HWP OLE 컨테이너 래퍼

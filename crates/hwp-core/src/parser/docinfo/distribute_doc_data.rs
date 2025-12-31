@@ -8,5 +8,10 @@ use nom::{IResult, bytes::complete::take};
 /// Parse distribute document data.
 pub fn parse_distribute_doc_data(input: &[u8]) -> IResult<&[u8], DistributeDocData> {
     let (input, data) = take(input.len())(input)?;
-    Ok((input, DistributeDocData { data: data.to_vec() }))
+    Ok((
+        input,
+        DistributeDocData {
+            data: data.to_vec(),
+        },
+    ))
 }

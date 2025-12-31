@@ -17,6 +17,9 @@ fn test_should_parse_sample_hwp_file() {
 
     // Assert
     assert!(!doc.sections.is_empty(), "Document should contain sections");
-    assert!(doc.paragraph_count() > 0, "Document should contain paragraphs");
+    assert!(
+        doc.paragraph_count() > 0,
+        "Document should contain paragraphs"
+    );
     // Add more specific assertions based on expected content of sample.hwp
 }

@@ -5,7 +5,7 @@
 use hwp_types::{ParameterItem, ParameterSet, ParameterValue};
 use nom::{
     IResult,
-    number::complete::{le_i16, le_i32, le_i8, le_u16, le_u32, le_u8},
+    number::complete::{le_i8, le_i16, le_i32, le_u8, le_u16, le_u32},
 };
 
 use crate::parser::primitives::parse_utf16le_string;
@@ -43,7 +43,11 @@ pub fn parse_doc_data(mut input: &[u8]) -> IResult<&[u8], Vec<ParameterSet>> {
 fn parse_parameter_set(input: &[u8]) -> IResult<&[u8], ParameterSet> {
     let (input, set_id) = le_u16(input)?;
     let (mut input, item_count) = le_i16(input)?;
-    let count = if item_count < 0 { 0 } else { item_count as usize };
+    let count = if item_count < 0 {
+        0
+    } else {
+        item_count as usize
+    };
 
     let mut items = Vec::with_capacity(count);
     for _ in 0..count {

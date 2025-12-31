@@ -7,7 +7,9 @@ use std::io::Cursor;
 use anyhow::{Context, anyhow};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use hwp_core::{
-    HwpOleFile, converter::structured::to_semantic_markdown, export::parse_structured_document,
+    HwpOleFile,
+    converter::structured::to_semantic_markdown,
+    export::parse_structured_document,
     parser::{DEFAULT_MAX_DECOMPRESSED_BYTES_PER_SECTION, SectionLimits},
 };
 use hwp_types::StructuredDocument;

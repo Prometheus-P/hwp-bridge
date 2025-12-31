@@ -128,7 +128,8 @@ impl<'a> ChartReader<'a> {
     }
 
     fn read_f32(&mut self) -> Option<f32> {
-        self.read_u32().map(|value| f32::from_le_bytes(value.to_le_bytes()))
+        self.read_u32()
+            .map(|value| f32::from_le_bytes(value.to_le_bytes()))
     }
 
     fn read_f64(&mut self) -> Option<f64> {
@@ -175,18 +176,17 @@ impl<'a> ChartReader<'a> {
         let bytes = &self.data[start..end];
         self.pos = end + 1;
         let value = String::from_utf8_lossy(bytes).trim().to_string();
-        if value.is_empty() {
-            None
-        } else {
-            Some(value)
-        }
+        if value.is_empty() { None } else { Some(value) }
     }
 
     fn peek_u16(&self) -> Option<u16> {
         if self.pos + 2 > self.data.len() {
             return None;
         }
-        Some(u16::from_le_bytes([self.data[self.pos], self.data[self.pos + 1]]))
+        Some(u16::from_le_bytes([
+            self.data[self.pos],
+            self.data[self.pos + 1],
+        ]))
     }
 
     fn read_string(&mut self) -> Option<String> {
@@ -206,11 +206,7 @@ impl<'a> ChartReader<'a> {
         let use_utf16 = bytes_len + header_len <= remaining
             && looks_like_utf16le(&self.data[start + header_len..start + header_len + bytes_len]);
 
-        let string_bytes_len = if use_utf16 {
-            bytes_len
-        } else {
-            count
-        };
+        let string_bytes_len = if use_utf16 { bytes_len } else { count };
 
         if header_len + string_bytes_len <= remaining && string_bytes_len <= MAX_STRING_BYTES {
             self.pos = start + header_len;
@@ -270,16 +266,12 @@ fn parse_chart_object(
     }
 
     let _object_id = reader.read_u32().ok_or(ChartParseError)?;
-    let stored_type_id = reader
-        .read_u32()
-        .ok_or(ChartParseError)?;
+    let stored_type_id = reader.read_u32().ok_or(ChartParseError)?;
 
     let object_info = if let Some(info) = registry.get(&stored_type_id) {
         info.clone()
     } else {
-        let name = reader
-            .read_cstring()
-            .ok_or(ChartParseError)?;
+        let name = reader.read_cstring().ok_or(ChartParseError)?;
         let version = reader.read_i32().ok_or(ChartParseError)?;
         let info = ChartTypeInfo {
             name: name.clone(),
@@ -296,10 +288,7 @@ fn parse_chart_object(
 
     let object_name = object_info.name.as_str();
     if let Some(_item_type) = collection_item_type(object_name) {
-        let count = reader
-            .read_i32()
-            .ok_or(ChartParseError)?
-            .max(0) as usize;
+        let count = reader.read_i32().ok_or(ChartParseError)?.max(0) as usize;
         let count = count.min(MAX_COLLECTION_COUNT);
         for _ in 0..count {
             parse_chart_object(reader, registry, state, depth + 1)?;
@@ -391,9 +380,9 @@ fn record_string(state: &mut ChartParseState, object: &str, field: &str, value: 
         ("VtChart", "ColumnLabel")
         | ("DataGrid", "ColumnLabel")
         | ("DataGrid", "CompositeColumnLabel") => state.push_col_label(value),
-        ("VtChart", "RowLabel")
-        | ("DataGrid", "RowLabel")
-        | ("DataGrid", "CompositeRowLabel") => state.push_row_label(value),
+        ("VtChart", "RowLabel") | ("DataGrid", "RowLabel") | ("DataGrid", "CompositeRowLabel") => {
+            state.push_row_label(value)
+        }
         ("VtChart", "Data") => state.push_data_value(value),
         ("Series", "LegendText") => state.push_col_label(value),
         _ => {}
@@ -439,7 +428,9 @@ fn build_data_grid(state: &ChartParseState) -> Option<StructuredTable> {
             let cell = &mut grid[0][idx + col_offset];
             cell.is_header = true;
             cell.blocks
-                .push(CellBlock::Paragraph(StructuredParagraph::from_text(label.clone())));
+                .push(CellBlock::Paragraph(StructuredParagraph::from_text(
+                    label.clone(),
+                )));
         }
     }
 
@@ -447,7 +438,9 @@ fn build_data_grid(state: &ChartParseState) -> Option<StructuredTable> {
         for (idx, label) in state.row_labels.iter().take(rows).enumerate() {
             let cell = &mut grid[idx + row_offset][0];
             cell.blocks
-                .push(CellBlock::Paragraph(StructuredParagraph::from_text(label.clone())));
+                .push(CellBlock::Paragraph(StructuredParagraph::from_text(
+                    label.clone(),
+                )));
         }
     }
 
@@ -457,7 +450,9 @@ fn build_data_grid(state: &ChartParseState) -> Option<StructuredTable> {
             if let Some(value) = value_iter.next() {
                 let cell = &mut grid[r + row_offset][c + col_offset];
                 cell.blocks
-                    .push(CellBlock::Paragraph(StructuredParagraph::from_text(value.clone())));
+                    .push(CellBlock::Paragraph(StructuredParagraph::from_text(
+                        value.clone(),
+                    )));
             }
         }
     }

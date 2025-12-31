@@ -5,7 +5,7 @@
 use hwp_types::{Bullet, ImageBullet};
 use nom::{
     IResult,
-    number::complete::{le_i32, le_i8, le_u16, le_u8},
+    number::complete::{le_i8, le_i32, le_u8, le_u16},
 };
 
 use super::para_head::parse_para_head_info;

@@ -13,12 +13,12 @@ use crate::parser::{
     HwpOleFile, SectionLimits, chart::parse_chart_contents, decompress_section_with_limits,
     parse_docinfo, record_nom::RecordIteratorNom,
 };
+use cfb::CompoundFile;
 use hwp_types::{
     BinData, CellBlock, ContentBlock, HwpError, ParagraphType, RecordTag, SemanticParagraph,
     SemanticTable, StructuredChart, StructuredDocument, StructuredParagraph, StructuredSection,
     StructuredTable, StructuredTableCell,
 };
-use cfb::CompoundFile;
 
 const MAX_HEADING_LEVEL: u8 = 6;
 const OLE_CTRL_ID: u32 = u32::from_le_bytes(*b"$ole");
@@ -137,11 +137,8 @@ fn parse_structured_document_with_mode<F: Read + Seek>(
                         }
                         RecordTag::ShapeComponentOle => {
                             if pending_ole_chart {
-                                let chart = build_chart_placeholder(
-                                    record.data,
-                                    &bin_data,
-                                    &mut ole,
-                                );
+                                let chart =
+                                    build_chart_placeholder(record.data, &bin_data, &mut ole);
                                 structured_section.add_content(ContentBlock::Chart(chart));
                                 pending_ole_chart = false;
                             }
@@ -160,7 +157,7 @@ fn parse_structured_document_with_mode<F: Read + Seek>(
                             }
                             Err(e) => match table_parse_mode {
                                 TableParseMode::Strict => {
-                                    return Err(HwpError::ParseError(e.to_string()))
+                                    return Err(HwpError::ParseError(e.to_string()));
                                 }
                                 TableParseMode::Placeholder => {
                                     if let Some((rows, cols)) = parse_table_dimensions(record.data)
@@ -216,7 +213,9 @@ fn semantic_paragraph_to_structured(
     }
 
     let mut paragraph = StructuredParagraph::from_text(trimmed.to_string());
-    if let Some(header) = semantic.header && header.style_id >= 1 {
+    if let Some(header) = semantic.header
+        && header.style_id >= 1
+    {
         paragraph.paragraph_type = ParagraphType::Heading {
             level: header.style_id.min(MAX_HEADING_LEVEL),
         };
@@ -385,10 +384,7 @@ fn extract_chart_stream(data: &[u8]) -> Option<(String, Vec<u8>)> {
     None
 }
 
-fn read_cfb_stream<F: Read + Seek>(
-    cfb: &mut CompoundFile<F>,
-    name: &str,
-) -> Option<Vec<u8>> {
+fn read_cfb_stream<F: Read + Seek>(cfb: &mut CompoundFile<F>, name: &str) -> Option<Vec<u8>> {
     let stream_name = if name.starts_with('/') {
         name.to_string()
     } else {
@@ -627,17 +623,26 @@ mod tests {
                 hwp_types::SemanticTableCell {
                     col_span: 2,
                     paragraphs: vec![SemanticParagraph::new_text("Merged Cell")],
-                    ..hwp_types::SemanticTableCell::new(hwp_types::CellCoordinate { row: 0, col: 0 })
+                    ..hwp_types::SemanticTableCell::new(hwp_types::CellCoordinate {
+                        row: 0,
+                        col: 0,
+                    })
                 },
                 // Row 1, Col 0
                 hwp_types::SemanticTableCell {
                     paragraphs: vec![SemanticParagraph::new_text("Cell A")],
-                    ..hwp_types::SemanticTableCell::new(hwp_types::CellCoordinate { row: 1, col: 0 })
+                    ..hwp_types::SemanticTableCell::new(hwp_types::CellCoordinate {
+                        row: 1,
+                        col: 0,
+                    })
                 },
                 // Row 1, Col 1
                 hwp_types::SemanticTableCell {
                     paragraphs: vec![SemanticParagraph::new_text("Cell B")],
-                    ..hwp_types::SemanticTableCell::new(hwp_types::CellCoordinate { row: 1, col: 1 })
+                    ..hwp_types::SemanticTableCell::new(hwp_types::CellCoordinate {
+                        row: 1,
+                        col: 1,
+                    })
                 },
             ],
         };
@@ -671,11 +676,17 @@ mod tests {
             cells: vec![
                 hwp_types::SemanticTableCell {
                     paragraphs: vec![SemanticParagraph::new_text("Header")],
-                    ..hwp_types::SemanticTableCell::new(hwp_types::CellCoordinate { row: 0, col: 0 })
+                    ..hwp_types::SemanticTableCell::new(hwp_types::CellCoordinate {
+                        row: 0,
+                        col: 0,
+                    })
                 },
                 hwp_types::SemanticTableCell {
                     paragraphs: vec![SemanticParagraph::new_text("Data")],
-                    ..hwp_types::SemanticTableCell::new(hwp_types::CellCoordinate { row: 1, col: 0 })
+                    ..hwp_types::SemanticTableCell::new(hwp_types::CellCoordinate {
+                        row: 1,
+                        col: 0,
+                    })
                 },
             ],
         };

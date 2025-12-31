@@ -215,7 +215,9 @@ fn json_pointer_for(key_path: &str) -> String {
 
 #[allow(dead_code)]
 fn get_str_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<String> {
-    if let Some(v) = query.get(key) && !v.trim().is_empty() {
+    if let Some(v) = query.get(key)
+        && !v.trim().is_empty()
+    {
         return Some(v.trim().to_string());
     }
     let cfg = cfg.as_ref()?;
@@ -225,7 +227,9 @@ fn get_str_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -
 }
 
 fn get_usize_param(query: &QueryMap, cfg: &Option<serde_json::Value>, key: &str) -> Option<usize> {
-    if let Some(v) = query.get(key) && let Ok(n) = v.trim().parse::<usize>() {
+    if let Some(v) = query.get(key)
+        && let Ok(n) = v.trim().parse::<usize>()
+    {
         return Some(n);
     }
     let cfg = cfg.as_ref()?;
@@ -358,7 +362,9 @@ fn validate_origin(headers: &HeaderMap, allowed: &AllowedOrigins) -> Result<(), 
 fn header_get_ci(headers: &HeaderMap, name: &str) -> Option<String> {
     // Case-insensitive lookup by iterating.
     for (k, v) in headers.iter() {
-        if k.as_str().eq_ignore_ascii_case(name) && let Ok(s) = v.to_str() {
+        if k.as_str().eq_ignore_ascii_case(name)
+            && let Ok(s) = v.to_str()
+        {
             return Some(s.to_string());
         }
     }
@@ -379,7 +385,9 @@ fn add_mcp_headers(resp: &mut Response, protocol_version: &str, session_id: Opti
     if let Ok(v) = HeaderValue::from_str(protocol_version) {
         headers.insert("Mcp-Protocol-Version", v);
     }
-    if let Some(sid) = session_id && let Ok(v) = HeaderValue::from_str(sid) {
+    if let Some(sid) = session_id
+        && let Ok(v) = HeaderValue::from_str(sid)
+    {
         headers.insert("Mcp-Session-Id", v);
     }
 }
@@ -747,12 +755,13 @@ async fn mcp_post(
     };
 
     // Validate header protocol if present.
-    if !is_initialize && let Some(h) = header_proto && h != effective_protocol {
+    if !is_initialize
+        && let Some(h) = header_proto
+        && h != effective_protocol
+    {
         return (
             StatusCode::BAD_REQUEST,
-            format!(
-                "Mcp-Protocol-Version mismatch. Session expects {effective_protocol}, got {h}"
-            ),
+            format!("Mcp-Protocol-Version mismatch. Session expects {effective_protocol}, got {h}"),
         )
             .into_response();
     }

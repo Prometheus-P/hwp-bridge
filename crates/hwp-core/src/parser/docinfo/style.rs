@@ -5,7 +5,7 @@
 use hwp_types::StyleRecord;
 use nom::{
     IResult,
-    number::complete::{le_i16, le_u16, le_u8},
+    number::complete::{le_i16, le_u8, le_u16},
 };
 
 use crate::parser::primitives::parse_utf16le_string;
